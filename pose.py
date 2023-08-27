@@ -1,26 +1,30 @@
+# TODO: Display the height of the wrist throughout time (Y axis)
+import os
 import cv2
 import mediapipe as mp
+import csv
+import subprocess
 
+from threading import Thread
+from collections import deque
 from enum import Enum
 
 VISIBILITY_TRESHOLD = 0.9
-CAPTURE_SOURCE = "data/staged/1_squat_front-angled.mp4"
+CAPTURE_SOURCE = "data/pose/staged/2_squat_front-angled.mp4"
 IM_HEIGHT_PX = 972
-NUM_DELTAS = 5
+NUM_DELTAS = 6
+FILE_OUT = 'heights.csv'
+FIELD_NAMES = ['time', 'height']
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
 
-class RepPhase(Enum):
-    CONCENTRIC = 0
-    ECCENTRIC = 1
-    ISOMETRIC = 2
-
 class Direction(Enum):
     UP = 0
     DOWN = 1
     STILL = 2
+
 
 class ImageWriter(object):
     def __init__(
@@ -81,32 +85,14 @@ class ImageWriter(object):
         self.n_lines += 1
 
 
-# TODO: Maybe implement a delta treshold?
-# FIXME: The directions don't seem to be accurate enough
-def set_direction(
-        deltas,
-        treshold=0.5
-    ):
-    negative, positive = 0, 0
+# FIXME: Needs smoothing out
+# def set_direction(deltas):
+#     deltas_sum = sum(deltas)
 
-    for delta in deltas:
-        if not delta:
-            continue
-
-        if delta < 0:
-            negative += 1
-        elif delta > 0:
-            positive += 1
-
-    percentage_negative = 0 if negative == 0 else len(deltas) / negative
-    percentage_positive = 0 if positive == 0 else len(deltas) / positive
-
-    if percentage_negative > treshold:
-        return Direction.DOWN
-    elif percentage_positive > treshold:
-        return Direction.UP
-    else:
-        return Direction.STILL
+#     if deltas_sum > 0:
+#         return Direction.UP
+#     else:
+#         return Direction.DOWN
 
 
 def get_distance(landmark1, landmark2):
@@ -117,22 +103,44 @@ def get_distance(landmark1, landmark2):
     return (x2 + y2 + z2)**(1/2)
 
 
+def print_heights(times: deque, heights: deque):
+    rows = []
+
+    while len(times):
+        rows.append([times.popleft(), heights.popleft()])
+
+    with open(FILE_OUT, 'a', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerows(rows)
+
+
 if __name__ == "__main__":
+    # Initialize the CSV output file
+    with open(FILE_OUT, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(FIELD_NAMES)
+
+    thread = Thread(target=lambda: subprocess.run(["python", "plot.py"]))
+    thread.start()
+
+    # Capture data
     cap = cv2.VideoCapture(CAPTURE_SOURCE)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    RATIO = float(width)/float(height)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    RATIO = float(frame_width)/float(frame_height)
     IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
+    heights = deque()
+    times = deque()
 
-    phase = RepPhase.CONCENTRIC  # TODO: let the user pick the starting phase
+    # Loop initialization
     wrist = None
     visibility = None
     distance = 0
-    time = 0
+    count = 0
     prev_results = None
-    y_deltas = [None] * NUM_DELTAS
-    direction = None
+    # y_deltas = [0] * NUM_DELTAS
+    # direction = None
 
     with mp_pose.Pose(
         min_detection_confidence=0.5,
@@ -173,9 +181,12 @@ if __name__ == "__main__":
                             results.pose_world_landmarks.landmark[wrist]
                         )
 
-                        y_deltas[time % NUM_DELTAS] = prev_results.pose_world_landmarks.landmark[wrist].y - results.pose_world_landmarks.landmark[wrist].y
-                        print(y_deltas)
-                        direction = set_direction(y_deltas)
+                        # FIXME: Smooth out the directions
+                        # y_deltas[count % NUM_DELTAS] = prev_results.pose_world_landmarks.landmark[wrist].y - results.pose_world_landmarks.landmark[wrist].y
+                        # direction = set_direction(y_deltas)
+
+                    heights.append(results.pose_world_landmarks.landmark[wrist].y)
+                    times.append(round(count/fps, 2))
 
                     visibility = results.pose_world_landmarks.landmark[wrist].visibility
 
@@ -184,23 +195,28 @@ if __name__ == "__main__":
                 writer = ImageWriter(im_resized)
                 writer.putText(f"wrist: {'left' if wrist == mp_pose.PoseLandmark.LEFT_WRIST else 'right'}")
                 writer.putText(f"distance: {distance:.2f}")
-                writer.putText(f"time: {(time/fps):.2f}")
+                writer.putText(f"time: {(count/fps):.2f}")
                 writer.putText(f"visibility: {visibility if visibility else '-'}")
-                writer.putText(f"direction: {direction if direction else '-'}")
+                # writer.putText(f"direction: {direction if direction else '-'}")
 
                 cv2.imshow(str(CAPTURE_SOURCE), im_resized)
 
+                if count % 5 == 0:
+                    print_heights(times, heights)
+
                 # Stream Control
                 key = cv2.waitKey(1)
-                if key & 0xFF == ord('m'):
-                    print(frame)
                 if key & 0xFF == ord('q'):
                     break
 
                 prev_results = results
-                time += 1
+                count += 1
             else:
                 break
 
+    print_heights(times, heights)
+
     cap.release()
     cv2.destroyAllWindows()
+
+    thread.join()
