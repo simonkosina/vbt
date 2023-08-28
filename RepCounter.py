@@ -46,16 +46,22 @@ class RepCounter(object):
         self.height_min = np.inf
         self.height_max = -np.inf
 
+        self.concentric_start = False
+        self.concentric_end = False
+
     @property
     def num_reps(self):
         return floor(self.num_holds/2)
 
+    # FIXME: Need to end to first rep sooner, not after it already started dropping!
     def _first_concentric_rep(self, height):
         if self.curr_phase == Phase.HOLD and height < self.max_treshold:
             self.curr_phase = self.opposite_phase(self.prev_phase)
             self.prev_phase = Phase.HOLD
+            self.concentric_start = self.curr_phase == Phase.CONCENTRIC
 
         if self.curr_phase != Phase.HOLD and height > self.min_treshold:
+            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
             self.curr_phase = self.opposite_phase(self.curr_phase)
             self.prev_phase = Phase.HOLD
             self.first_rep = False
@@ -65,10 +71,13 @@ class RepCounter(object):
         if self.curr_phase == Phase.HOLD and height > self.min_treshold:
             self.curr_phase = self.opposite_phase(self.prev_phase)
             self.prev_phase = Phase.HOLD
+            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
 
         if self.curr_phase != Phase.HOLD and height < self.max_treshold:
+            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
             self.curr_phase = self.opposite_phase(self.curr_phase)
             self.prev_phase = Phase.HOLD
+            self.concentric_end = True
             self.first_rep = False
             self.num_holds += 1
 
@@ -91,6 +100,9 @@ class RepCounter(object):
             self.max_treshold = new_treshold
 
     def update(self, height):
+        self.concentric_start = False
+        self.concentric_end = False
+
         self.update_min_treshold(height)
         self.update_max_treshold(height)
 
@@ -106,9 +118,11 @@ class RepCounter(object):
         # Handles subsequent reps
         if height > self.min_treshold and height < self.max_treshold and self.curr_phase == Phase.HOLD:
             self.curr_phase = self.opposite_phase(self.prev_phase)
+            self.concentric_start = self.curr_phase == Phase.CONCENTRIC
             self.prev_phase = Phase.HOLD
 
         if (height < self.min_treshold or height > self.max_treshold) and self.curr_phase != Phase.HOLD:
+            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
             self.prev_phase = self.curr_phase
             self.curr_phase = Phase.HOLD
             self.num_holds += 1

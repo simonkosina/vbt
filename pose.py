@@ -8,12 +8,12 @@ from ImageWriter import ImageWriter
 from helpers import calculate_distance, height_plot
 
 VISIBILITY_TRESHOLD = 0.9
-# CAPTURE_SOURCE = "data/pose/staged/2_squat_front-angled.mp4"
-CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
+CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_rdl_9reps_20230822_064315542.mp4"
 IM_HEIGHT_PX = 800
 NUM_DELTAS = 6
-STARTING_PHASE = Phase.CONCENTRIC
+STARTING_PHASE = Phase.ECCENTRIC
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
@@ -36,9 +36,14 @@ if __name__ == "__main__":
     wrist = None
     visibility = None
     distance = 0
-    count = 0
+    lr_distance = 0
+    lr_time = 0
+    frame_count = 0
     prev_results = None
     rep_counter = RepCounter(STARTING_PHASE)
+    concentric_start_frame = 0
+    concentric_end_frame = 0
+    acv = None
 
     with mp_pose.Pose(
         model_complexity=1,
@@ -73,20 +78,32 @@ if __name__ == "__main__":
                     else:
                         wrist = mp_pose.PoseLandmark.RIGHT_WRIST
 
-                    if update_data:
-                        # TODO: Only if the difference is large enough?
-                        distance += calculate_distance(
-                            prev_results.pose_world_landmarks.landmark[wrist],
-                            results.pose_world_landmarks.landmark[wrist]
-                        )
-
                     # FIXME: See what's happening with the world coordinates? They seem to fluctuate too much compared to the image coordinates.
                     # y = results.pose_world_landmarks.landmark[wrist].y
                     y = results.pose_landmarks.landmark[wrist].y
                     rep_counter.update(height=y)
 
+                    if update_data:
+                        # TODO: Only if the difference is large enough?
+                        # FIXME: Only count the distance if it's actually needed.
+                        distance += calculate_distance(
+                            prev_results.pose_world_landmarks.landmark[wrist],
+                            results.pose_world_landmarks.landmark[wrist]
+                        )
+
+                        if rep_counter.concentric_start:
+                            concentric_start_frame = frame_count
+                            distance = 0
+
+                        if rep_counter.concentric_end:
+                            concentric_end_frame = frame_count
+                            lr_distance = distance
+                            lr_time = (concentric_end_frame - concentric_start_frame) / fps
+                            acv = distance / lr_time  # m/s
+
+                    # Data for the height plot
                     heights.append(y)
-                    counts.append(count)
+                    counts.append(frame_count)
 
                     visibility = results.pose_world_landmarks.landmark[wrist].visibility
 
@@ -97,6 +114,9 @@ if __name__ == "__main__":
                 writer.putText(f"visibility: {visibility if visibility else '-'}")
                 writer.putText(f"phase: {rep_counter.curr_phase}")
                 writer.putText(f"reps: {rep_counter.num_reps}")
+                writer.putText(f"lr time: {lr_time}")
+                writer.putText(f"lr distance: {lr_distance}")
+                writer.putText(f"lr ACV: {acv if acv else '-'}")
 
                 im_graph = height_plot(counts, heights, rep_counter.height_min, rep_counter.height_max, IM_WIDTH_PX)
                 im_vconcat = cv2.vconcat([im_resized, im_graph])
@@ -108,7 +128,7 @@ if __name__ == "__main__":
                     break
 
                 prev_results = results
-                count += 1
+                frame_count += 1
             else:
                 break
 
