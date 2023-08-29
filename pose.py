@@ -8,12 +8,15 @@ from ImageWriter import ImageWriter
 from helpers import calculate_distance, height_plot
 
 VISIBILITY_TRESHOLD = 0.9
-CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
-# CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/1_squat_back-angled.mp4"
+CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
+# CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_8reps_20230203_130125.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_rdl_9reps_20230822_064315542.mp4"
 IM_HEIGHT_PX = 800
 NUM_DELTAS = 6
-STARTING_PHASE = Phase.ECCENTRIC
+STARTING_PHASE = Phase.CONCENTRIC
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
@@ -27,12 +30,13 @@ if __name__ == "__main__":
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     RATIO = float(frame_width)/float(frame_height)
     IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
+
+    # Loop initialization
+    distances = []  # FIXME: Might be needing too much memory. Needed for the first rep, can just accumulate without remembering for subsequent reps.
     heights = []
     counts = []
     y_min = np.inf
     y_max = -np.inf
-
-    # Loop initialization
     wrist = None
     visibility = None
     distance = 0
@@ -44,6 +48,7 @@ if __name__ == "__main__":
     concentric_start_frame = 0
     concentric_end_frame = 0
     acv = None
+    first_rep_processing = False
 
     with mp_pose.Pose(
         model_complexity=1,
@@ -78,6 +83,9 @@ if __name__ == "__main__":
                     else:
                         wrist = mp_pose.PoseLandmark.RIGHT_WRIST
 
+                    # Remember if the first rep ended to alter statistics computations.
+                    first_rep_processing = rep_counter.first_rep 
+
                     # FIXME: See what's happening with the world coordinates? They seem to fluctuate too much compared to the image coordinates.
                     # y = results.pose_world_landmarks.landmark[wrist].y
                     y = results.pose_landmarks.landmark[wrist].y
@@ -86,20 +94,38 @@ if __name__ == "__main__":
                     if update_data:
                         # TODO: Only if the difference is large enough?
                         # FIXME: Only count the distance if it's actually needed.
-                        distance += calculate_distance(
+                        distances.append(calculate_distance(
                             prev_results.pose_world_landmarks.landmark[wrist],
                             results.pose_world_landmarks.landmark[wrist]
-                        )
+                        ))
 
                         if rep_counter.concentric_start:
                             concentric_start_frame = frame_count
-                            distance = 0
 
                         if rep_counter.concentric_end:
                             concentric_end_frame = frame_count
-                            lr_distance = distance
-                            lr_time = (concentric_end_frame - concentric_start_frame) / fps
-                            acv = distance / lr_time  # m/s
+
+                            # Discard the "hold" part from the first rep
+                            if first_rep_processing:
+                                # Find the frame where the first rep crossed the min/max treshold
+                                if STARTING_PHASE == Phase.CONCENTRIC:
+                                    def evaluate(x):
+                                        return x < rep_counter.min_treshold
+                                else:
+                                    def evaluate(x):
+                                        return x > rep_counter.max_treshold
+
+                                for index, height in enumerate(heights):
+                                    if evaluate(height):
+                                        break
+
+                                lr_distance = sum(distances[concentric_start_frame:index+1])
+                                lr_time = (index - concentric_start_frame) / fps
+                            else:
+                                lr_distance = sum(distances[concentric_start_frame:concentric_end_frame+1])
+                                lr_time = (concentric_end_frame - concentric_start_frame) / fps
+
+                            acv = lr_distance / lr_time  # m/s
 
                     # Data for the height plot
                     heights.append(y)
@@ -126,6 +152,9 @@ if __name__ == "__main__":
                 key = cv2.waitKey(1)
                 if key & 0xFF == ord('q'):
                     break
+
+                if not update_data:
+                    distances.append(0)
 
                 prev_results = results
                 frame_count += 1

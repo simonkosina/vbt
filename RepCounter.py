@@ -49,6 +49,7 @@ class RepCounter(object):
         self.concentric_start = False
         self.concentric_end = False
 
+
     @property
     def num_reps(self):
         return floor(self.num_holds/2)
