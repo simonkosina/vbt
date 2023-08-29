@@ -1,4 +1,4 @@
-# TODO: Display the height of the wrist throughout time (Y axis)
+# TODO: Implement a visibility tresholds?
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -7,16 +7,16 @@ from RepCounter import RepCounter, Phase
 from ImageWriter import ImageWriter
 from helpers import calculate_distance, height_plot
 
-VISIBILITY_TRESHOLD = 0.9
 # CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
 # CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
-# CAPTURE_SOURCE = "data/pose/staged/1_squat_back-angled.mp4"
-CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
+CAPTURE_SOURCE = "data/pose/staged/1_squat_front-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_8reps_20230203_130125.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_rdl_9reps_20230822_064315542.mp4"
 IM_HEIGHT_PX = 800
 NUM_DELTAS = 6
-STARTING_PHASE = Phase.CONCENTRIC
+STARTING_PHASE = Phase.ECCENTRIC
+# STARTING_PHASE = Phase.CONCENTRIC
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
@@ -48,7 +48,6 @@ if __name__ == "__main__":
     concentric_start_frame = 0
     concentric_end_frame = 0
     acv = None
-    first_rep_processing = False
 
     with mp_pose.Pose(
         model_complexity=1,
@@ -74,8 +73,6 @@ if __name__ == "__main__":
                 if results.pose_landmarks:
                     update_data = prev_results is not None
                     update_data = update_data and prev_results.pose_world_landmarks
-                    update_data = update_data and prev_results.pose_world_landmarks.landmark[wrist].visibility > VISIBILITY_TRESHOLD
-                    update_data = update_data and results.pose_world_landmarks.landmark[wrist].visibility > VISIBILITY_TRESHOLD
 
                     # TODO: Set only once? Or make sure that we are not computing the distance while switching wrists.
                     if results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_WRIST].z < results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_WRIST].z:
@@ -83,21 +80,18 @@ if __name__ == "__main__":
                     else:
                         wrist = mp_pose.PoseLandmark.RIGHT_WRIST
 
-                    # Remember if the first rep ended to alter statistics computations.
-                    first_rep_processing = rep_counter.first_rep 
-
-                    # FIXME: See what's happening with the world coordinates? They seem to fluctuate too much compared to the image coordinates.
-                    # y = results.pose_world_landmarks.landmark[wrist].y
-                    y = results.pose_landmarks.landmark[wrist].y
-                    rep_counter.update(height=y)
-
                     if update_data:
-                        # TODO: Only if the difference is large enough?
                         # FIXME: Only count the distance if it's actually needed.
+                        # FIXME: Needs to be smoothed out! Problems with adding all the noise distances.
                         distances.append(calculate_distance(
                             prev_results.pose_world_landmarks.landmark[wrist],
                             results.pose_world_landmarks.landmark[wrist]
                         ))
+
+                        # FIXME: See what's happening with the world coordinates? They seem to fluctuate too much compared to the image coordinates.
+                        # y = results.pose_world_landmarks.landmark[wrist].y
+                        y = results.pose_landmarks.landmark[wrist].y
+                        rep_counter.update(height=y)
 
                         if rep_counter.concentric_start:
                             concentric_start_frame = frame_count
@@ -105,31 +99,25 @@ if __name__ == "__main__":
                         if rep_counter.concentric_end:
                             concentric_end_frame = frame_count
 
-                            # Discard the "hold" part from the first rep
-                            if first_rep_processing:
-                                # Find the frame where the first rep crossed the min/max treshold
+                            # Discard the "hold" part from the first rep on lifts starting with a concentric phase
+                            if rep_counter.num_reps == 0 and STARTING_PHASE == Phase.CONCENTRIC:
+                                # Find the frame where the first rep crossed the min treshold
                                 if STARTING_PHASE == Phase.CONCENTRIC:
-                                    def evaluate(x):
-                                        return x < rep_counter.min_treshold
-                                else:
-                                    def evaluate(x):
-                                        return x > rep_counter.max_treshold
+                                    for index, height in enumerate(heights):
+                                        if height < rep_counter.min_treshold:
+                                            break
 
-                                for index, height in enumerate(heights):
-                                    if evaluate(height):
-                                        break
-
-                                lr_distance = sum(distances[concentric_start_frame:index+1])
-                                lr_time = (index - concentric_start_frame) / fps
+                                    lr_distance = sum(distances[concentric_start_frame:index+1])
+                                    lr_time = (index - concentric_start_frame) / fps
                             else:
                                 lr_distance = sum(distances[concentric_start_frame:concentric_end_frame+1])
                                 lr_time = (concentric_end_frame - concentric_start_frame) / fps
 
                             acv = lr_distance / lr_time  # m/s
 
-                    # Data for the height plot
-                    heights.append(y)
-                    counts.append(frame_count)
+                        # Data for the height plot
+                        heights.append(y)
+                        counts.append(frame_count)
 
                     visibility = results.pose_world_landmarks.landmark[wrist].visibility
 

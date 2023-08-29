@@ -36,7 +36,7 @@ class RepCounter(object):
         self.curr_phase = Phase.HOLD
         self.prev_phase = self.opposite_phase(starting_phase)
 
-        self.first_rep = True
+        self.first_phase = True
         self.height = None
         self.min_treshold = np.inf
         self.max_treshold = -np.inf
@@ -49,37 +49,35 @@ class RepCounter(object):
         self.concentric_start = False
         self.concentric_end = False
 
-
     @property
     def num_reps(self):
         return floor(self.num_holds/2)
 
-    # FIXME: Need to end to first rep sooner, not after it already started dropping!
-    def _first_concentric_rep(self, height):
+    def _first_concentric(self, height):
+        """For the first rep the phases go hold -> concentric -> eccentric -> ..."""
         if self.curr_phase == Phase.HOLD and height < self.max_treshold:
             self.curr_phase = self.opposite_phase(self.prev_phase)
             self.prev_phase = Phase.HOLD
-            self.concentric_start = self.curr_phase == Phase.CONCENTRIC
+            self.concentric_start = True
 
         if self.curr_phase != Phase.HOLD and height > self.min_treshold:
-            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
-            self.curr_phase = self.opposite_phase(self.curr_phase)
-            self.prev_phase = Phase.HOLD
-            self.first_rep = False
-            self.num_holds += 1
-
-    def _first_eccentric_rep(self, height):
-        if self.curr_phase == Phase.HOLD and height > self.min_treshold:
-            self.curr_phase = self.opposite_phase(self.prev_phase)
-            self.prev_phase = Phase.HOLD
-            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
-
-        if self.curr_phase != Phase.HOLD and height < self.max_treshold:
-            self.concentric_end = self.curr_phase == Phase.CONCENTRIC
             self.curr_phase = self.opposite_phase(self.curr_phase)
             self.prev_phase = Phase.HOLD
             self.concentric_end = True
-            self.first_rep = False
+            self.first_phase = False
+            self.num_holds += 1
+
+    def _first_eccentric(self, height):
+        """For the first rep the phases go hold -> eccentric -> concentric -> ..."""
+        if self.curr_phase == Phase.HOLD and height > self.min_treshold:
+            self.curr_phase = self.opposite_phase(self.prev_phase)
+            self.prev_phase = Phase.HOLD
+
+        if self.curr_phase != Phase.HOLD and height < self.max_treshold:
+            self.curr_phase = self.opposite_phase(self.curr_phase)
+            self.prev_phase = Phase.HOLD
+            self.concentric_start = True
+            self.first_phase = False
             self.num_holds += 1
 
     def update_min_treshold(self, height):
@@ -108,12 +106,12 @@ class RepCounter(object):
         self.update_max_treshold(height)
 
         # Handles first rep
-        if self.first_rep and self.starting_phase == Phase.CONCENTRIC:
-            self._first_concentric_rep(height)
+        if self.first_phase and self.starting_phase == Phase.CONCENTRIC:
+            self._first_concentric(height)
             return
 
-        if self.first_rep and self.starting_phase == Phase.ECCENTRIC:
-            self._first_eccentric_rep(height)
+        if self.first_phase and self.starting_phase == Phase.ECCENTRIC:
+            self._first_eccentric(height)
             return
 
         # Handles subsequent reps
