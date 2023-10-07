@@ -8,11 +8,11 @@ from ImageWriter import ImageWriter
 from helpers import calculate_distance, height_plot
 
 # CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
-CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
 # CAPTURE_SOURCE = "data/pose/staged/1_bp_front-angled.mp4"
 # CAPTURE_SOURCE = "data/pose/staged/1_bp_back-angled.mp4"
 # CAPTURE_SOURCE = "data/pose/staged/1_squat_front-angled.mp4"
-# CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
+CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_8reps_20230203_130125.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_squat_5reps_20230818_070605638.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_rdl_9reps_20230822_064315542.mp4"
@@ -56,7 +56,8 @@ if __name__ == "__main__":
     with mp_pose.Pose(
         model_complexity=1,
         min_detection_confidence=0.5,
-        min_tracking_confidence=0.95
+        min_tracking_confidence=0.95,
+        smooth_landmarks=True
     ) as pose:
         while (cap.isOpened()):
             ret, frame = cap.read()
@@ -129,12 +130,12 @@ if __name__ == "__main__":
 
                 writer = ImageWriter(im_resized)
                 writer.putText(f"wrist: {'left' if wrist == mp_pose.PoseLandmark.LEFT_WRIST else 'right'}")
-                writer.putText(f"visibility: {visibility if visibility else '-'}")
+                writer.putText(f"visibility: {round(visibility, 2) if visibility else '-'}")
                 writer.putText(f"phase: {rep_counter.curr_phase}")
                 writer.putText(f"reps: {rep_counter.num_reps}")
-                writer.putText(f"lr time: {lr_time}")
-                writer.putText(f"lr distance: {lr_distance}")
-                writer.putText(f"lr ACV: {acv if acv else '-'}")
+                writer.putText(f"lr time: {lr_time:.2f}")
+                writer.putText(f"lr distance: {lr_distance:.2f}")
+                writer.putText(f"lr ACV: {round(acv, 4) if acv else '-'}")
 
                 im_graph = height_plot(counts, heights, rep_counter.height_min, rep_counter.height_max, IM_WIDTH_PX)
                 im_vconcat = cv2.vconcat([im_resized, im_graph])
