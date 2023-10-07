@@ -10,7 +10,7 @@ VALID_DIR = os.path.join(DATA_DIR, 'valid')
 TEST_DIR = os.path.join(DATA_DIR, 'test')
 BATCH_SIZE = 8
 ARCHITECTURE = 'efficientdet_lite1' 
-TRAIN_WHOLE_MODEL = True
+TRAIN_WHOLE_MODEL = False
 
 if __name__ == "__main__":
     spec = model_spec.get(ARCHITECTURE)
