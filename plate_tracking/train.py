@@ -3,39 +3,55 @@ import os
 from tflite_model_maker import object_detector
 from tflite_model_maker import model_spec
 
-# ARCHITECTURE = 'efficientdet_lite3' 
-ARCHITECTURE = 'efficientdet_lite4' 
+EXPORT_DIR = 'models'
+DATA_DIR = 'data'
+TRAIN_DIR = os.path.join(DATA_DIR, 'train')
+VALID_DIR = os.path.join(DATA_DIR, 'valid')
+TEST_DIR = os.path.join(DATA_DIR, 'test')
 BATCH_SIZE = 8
+ARCHITECTURE = 'efficientdet_lite1' 
+TRAIN_WHOLE_MODEL = True
 
 if __name__ == "__main__":
     spec = model_spec.get(ARCHITECTURE)
 
-    # TODO: Upload the dataset somewhere.
     train = object_detector.DataLoader.from_pascal_voc(
-        images_dir="data/train",
-        annotations_dir="data/train",
+        images_dir=TRAIN_DIR,
+        annotations_dir=TRAIN_DIR,
         label_map={1: "barbell"}
     )
 
     valid = object_detector.DataLoader.from_pascal_voc(
-        images_dir="data/valid",
-        annotations_dir="data/valid",
+        images_dir=VALID_DIR,
+        annotations_dir=VALID_DIR,
         label_map={1: "barbell"}
     )
 
     test = object_detector.DataLoader.from_pascal_voc(
-        images_dir="data/test",
-        annotations_dir="data/test",
+        images_dir=TEST_DIR,
+        annotations_dir=TEST_DIR,
         label_map={1: "barbell"}
     )
 
-    model = object_detector.create(train, epochs=50, model_spec=spec, batch_size=BATCH_SIZE, validation_data=valid)
+    model = object_detector.create(
+        train,
+        epochs=50,
+        model_spec=spec,
+        batch_size=BATCH_SIZE,
+        train_whole_model=TRAIN_WHOLE_MODEL,
+        validation_data=valid
+    )
+
+    tflite_filename = f'{ARCHITECTURE}.tflite'
+
+    if TRAIN_WHOLE_MODEL:
+        tflite_filename = f'{ARCHITECTURE}_whole.tflite'
 
     print("Evaluating the original model...")
     print(model.evaluate(test, batch_size=BATCH_SIZE))
 
     print("Exporting the model...")
-    model.export(export_dir='model', tflite_filename=f'{ARCHITECTURE}.tflite')
+    model.export(export_dir=EXPORT_DIR, tflite_filename=tflite_filename)
 
     print("Evaluating the exported model...")
-    print(model.evaluate_tflite(f'model/{ARCHITECTURE}.tflite', test))
+    print(model.evaluate_tflite(os.path.join(EXPORT_DIR, tflite_filename), test))
