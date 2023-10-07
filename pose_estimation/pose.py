@@ -8,15 +8,19 @@ from ImageWriter import ImageWriter
 from helpers import calculate_distance, height_plot
 
 # CAPTURE_SOURCE = "data/pose/staged/2_bp_front-angled.mp4"
-# CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
-CAPTURE_SOURCE = "data/pose/staged/1_squat_front-angled.mp4"
+CAPTURE_SOURCE = "data/pose/staged/2_bp_back-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/1_bp_front-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/1_bp_back-angled.mp4"
+# CAPTURE_SOURCE = "data/pose/staged/1_squat_front-angled.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_6reps_20200827_150916.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_deadlift_8reps_20230203_130125.mp4"
+# CAPTURE_SOURCE = "data/pose/gym/cut_squat_5reps_20230818_070605638.mp4"
 # CAPTURE_SOURCE = "data/pose/gym/cut_rdl_9reps_20230822_064315542.mp4"
-IM_HEIGHT_PX = 800
+IM_HEIGHT_PX = 1200
+# IM_HEIGHT_PX = 800
 NUM_DELTAS = 6
-STARTING_PHASE = Phase.ECCENTRIC
-# STARTING_PHASE = Phase.CONCENTRIC
+# STARTING_PHASE = Phase.ECCENTRIC
+STARTING_PHASE = Phase.CONCENTRIC
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils

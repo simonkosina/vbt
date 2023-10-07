@@ -12,7 +12,7 @@ def calculate_distance(landmark1, landmark2):
     return (x2 + y2 + z2)**(1/2)
 
 
-def height_plot(x_list, y_list, y_min, y_max, im_width, im_height=150, vpadding_px=10):
+def height_plot(x_list, y_list, y_min, y_max, im_width, im_height=300, vpadding_px=10):
     y_size = im_height - vpadding_px
     im_graph = np.zeros((im_height, im_width, 3), dtype=np.uint8)
 
