@@ -1,7 +1,11 @@
 import os
+import tensorflow as tf
 
 from tflite_model_maker import object_detector
 from tflite_model_maker import model_spec
+
+# Hide GPU from visible devices
+tf.config.set_visible_devices([], 'GPU')
 
 EXPORT_DIR = 'models'
 DATA_DIR = 'data'
@@ -9,8 +13,8 @@ TRAIN_DIR = os.path.join(DATA_DIR, 'train')
 VALID_DIR = os.path.join(DATA_DIR, 'valid')
 TEST_DIR = os.path.join(DATA_DIR, 'test')
 BATCH_SIZE = 8
-ARCHITECTURE = 'efficientdet_lite1' 
-TRAIN_WHOLE_MODEL = False
+ARCHITECTURE = 'efficientdet_lite2' 
+TRAIN_WHOLE_MODEL = True
 
 if __name__ == "__main__":
     spec = model_spec.get(ARCHITECTURE)
