@@ -4,15 +4,18 @@ import tensorflow as tf
 from tflite_model_maker import object_detector
 from tflite_model_maker import model_spec
 
-# Hide GPU from visible devices
-tf.config.set_visible_devices([], 'GPU')
+# tf.config.set_visible_devices([], 'GPU')
+
+# TODO: When mentioning the models in the thesis refer to the table and say that
+#       the lite3 & lite4 models were too big and had a lot of latency, while
+#       from experimental testing they didn't seem to provide much better results.
 
 EXPORT_DIR = 'models'
 DATA_DIR = 'data'
 TRAIN_DIR = os.path.join(DATA_DIR, 'train')
 VALID_DIR = os.path.join(DATA_DIR, 'valid')
 TEST_DIR = os.path.join(DATA_DIR, 'test')
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 ARCHITECTURE = 'efficientdet_lite2' 
 TRAIN_WHOLE_MODEL = True
 
