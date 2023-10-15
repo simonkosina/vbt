@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
                 im_graph = height_plot(counts, heights, rep_counter.height_min, rep_counter.height_max, IM_WIDTH_PX)
                 im_vconcat = cv2.vconcat([im_resized, im_graph])
-                cv2.imshow(str(CAPTURE_SOURCE), im_vconcat)
+                cv2.imshow("Pose Estimation", im_vconcat)
 
                 # Stream Control
                 key = cv2.waitKey(1)
