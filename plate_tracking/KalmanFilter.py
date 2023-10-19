@@ -57,7 +57,7 @@ class KalmanFilter(object):
         self.P = self.A @ self.P @ self.A.T + self.Q
 
         # Return the predicted position
-        return self.x[0:2]
+        return self.x[:2]
     
     def update(self, z):
         """
@@ -67,11 +67,11 @@ class KalmanFilter(object):
         S = self.H @ self.P @ self.H.T + self.R
         K = self.P @ self.H.T @ np.linalg.inv(S)
 
-        self.x = np.round(self.x + self.K @ (z - self.H @ self.x))
+        self.x = self.x + K @ (z - self.H @ self.x)
 
         I = np.eye(self.H.shape[1])
 
         self.P = (I - (K @ self.H)) @ self.P
 
         # Return the estimated position
-        return self.x[0:2]
+        return self.x[:2]

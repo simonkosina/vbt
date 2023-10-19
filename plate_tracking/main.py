@@ -13,11 +13,12 @@ from odt import run_odt, draw_results, calc_bounding_box_center
 
 TRACKING_ID = 0 # User will be able to pick in the application
 MODEL_PATH = "plate_tracking/models/efficientdet_lite0_whole.tflite"
-CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
+# CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
+CAPTURE_SOURCE = "plate_tracking/samples/cut/024_dl_4_reps.mp4"
 IM_HEIGHT_PX = 1000
 DETECTION_TRESHOLD = 0.5
 
-CREATE_DATAFRAME = False # Creates a dataframe used by plot.py
+CREATE_DATAFRAME = True # Creates a dataframe used by plot.py
 DATAFRAME_FILENAME = CAPTURE_SOURCE.split('.')[0] + '.pkl'
 
 if __name__ == "__main__":
@@ -30,7 +31,8 @@ if __name__ == "__main__":
     IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
 
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
-    kf_args = {'dt': 1/fps, 'ux': 1, 'uy': 1, 'std_acc': 1, 'xm_std': 0.1, 'ym_std': 0.1}
+    # TODO: Play with different initialization parameters
+    kf_args = {'dt': 1/fps, 'ux': 0, 'uy': 0, 'std_acc': 1, 'xm_std': 0.1, 'ym_std': 0.1}
     kfs = {}
 
     # Initialize tracking variables
@@ -79,19 +81,25 @@ if __name__ == "__main__":
                 for tracking_id, result in results.items():
                     x, y = calc_bounding_box_center(result['bounding_box'])
                     # TODO: Sort out the original/resized image coordinates
+                    # TODO: Plot the Kalman estimates
+                    # TODO: Display the estimated bar_bath
 
                     if tracking_id not in kfs:
                         kfs[tracking_id] = KalmanFilter(x, y, **kf_args)
                     
                     kfs[tracking_id].predict()
-                    xk, yk = kfs[tracking_id].update([x,y])
-
+                    xk, yk = kfs[tracking_id].update([[x], [y]])
+                    
+                    # TODO: in the return statement
+                    xk = xk[0]
+                    yk = yk[0]
+ 
                     data['id'].append(tracking_id)
                     data['time'].append(time)
                     data['x_raw'].append(x)
                     data['y_raw'].append(y)
-                    data['x_filtered'].append(x)
-                    data['y_filtered'].append(y)
+                    data['x_filtered'].append(xk)
+                    data['y_filtered'].append(yk)
 
             # TODO: Run the prediction step if the object isn't detected.
 
@@ -106,5 +114,6 @@ if __name__ == "__main__":
     cap.release()
     cv2.destroyAllWindows()
 
-    df = pd.DataFrame.from_dict(data)
-    df.to_pickle(DATAFRAME_FILENAME)
+    if CREATE_DATAFRAME:
+        df = pd.DataFrame.from_dict(data)
+        df.to_pickle(DATAFRAME_FILENAME)
