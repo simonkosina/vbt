@@ -30,7 +30,7 @@ class RepCounter(object):
 
     def __init__(self, starting_phase):
         if starting_phase not in [Phase.CONCENTRIC, Phase.ECCENTRIC]:
-            raise ValueError('Starting phase must be either concentri or eccentric')
+            raise ValueError('Starting phase must be either concentric or eccentric')
 
         self.starting_phase = starting_phase
         self.curr_phase = Phase.HOLD

@@ -3,6 +3,8 @@ plate_tracking/tmp
 *.mp4
 .venv/
 .vscode
+*.pkl
+*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

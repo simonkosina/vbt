@@ -75,7 +75,6 @@ if __name__ == "__main__":
                 if results.pose_landmarks:
                     mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-                if results.pose_landmarks:
                     update_data = prev_results is not None
                     update_data = update_data and prev_results.pose_world_landmarks
 

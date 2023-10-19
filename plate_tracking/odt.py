@@ -1,34 +1,20 @@
-# TODO: Cite https://www.tensorflow.org/lite/models/modify/model_maker/object_detection#run_object_detection_and_show_the_detection_results
-# TODO: Can't let the plates be detected in different order. Let the user pick the right one, if multiple plates detected and based on distance, decide which is which.
-
-import time
 import cv2
 import numpy as np
 import tensorflow as tf
 
 from math import sqrt
 
+# Better if GPU's not used for tflite inference
 tf.config.set_visible_devices([], 'GPU')
-
-# MODEL_PATH = "plate_tracking/models/efficientdet_lite0_whole.tflite"
-# MODEL_PATH = "plate_tracking/models/efficientdet_lite1_whole.tflite"
-MODEL_PATH = "plate_tracking/models/efficientdet_lite2_whole.tflite"
-CAPTURE_SOURCE = "plate_tracking/samples/cut/003_squat_7_reps.mp4"
-# CAPTURE_SOURCE = "plate_tracking/samples/cut/027_smith_bp_7_reps.mp4"
-# CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
-IM_HEIGHT_PX = 1000
-DETECTION_TRESHOLD = 0.5
 
 # Define a list of colors for visualization
 COLORS = [[255, 0, 255]]
-
-bar_paths = {}
 
 
 def preprocess_image(frame, input_size):
     """Preprocess the input image to feed to the TFLite model"""
     original_img = tf.convert_to_tensor(frame, dtype=tf.dtypes.uint8)
-    resized_img = tf.image.resize(img, input_size)
+    resized_img = tf.image.resize(original_img, input_size)
     resized_img = resized_img[tf.newaxis, :]
     resized_img = tf.cast(resized_img, dtype=tf.uint8)
     return resized_img, original_img
@@ -130,14 +116,14 @@ def detect_objects(interpreter, image, threshold):
     return results, classes
 
 
-def run_odt_and_draw_results(frame, interpreter, threshold=0.5):
+def run_odt(frame, interpreter, threshold=0.5):
     """Run object detection on the input image and draw the detection results"""
     # Load the input shape required by the model
     _, input_height, input_width, _ = interpreter.get_input_details()[
         0]['shape']
 
     # Load the input image and preprocess it
-    preprocessed_image, original_image = preprocess_image(
+    preprocessed_image, _ = preprocess_image(
         frame,
         (input_height, input_width)
     )
@@ -146,8 +132,13 @@ def run_odt_and_draw_results(frame, interpreter, threshold=0.5):
     results, classes = detect_objects(
         interpreter, preprocessed_image, threshold=threshold)
 
+    return results
+
+
+def draw_results(image, results, bar_paths):
     # Plot the detection results on the input image
-    original_image_np = original_image.numpy().astype(np.uint8)
+    original_image_np = np.array(image, dtype=np.uint8)
+
     for tracking_id, obj in results.items():
         # Convert the object bounding box from relative coordinates to absolute
         # coordinates based on the original image resolution
@@ -181,44 +172,5 @@ def run_odt_and_draw_results(frame, interpreter, threshold=0.5):
 
     # Return the final image
     original_uint8 = original_image_np.astype(np.uint8)
+
     return original_uint8
-
-
-if __name__ == "__main__":
-    cap = cv2.VideoCapture(CAPTURE_SOURCE)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    RATIO = float(frame_width)/float(frame_height)
-    IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
-
-    count = 0
-
-    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH, num_threads=16)
-    interpreter.allocate_tensors()
-
-    while (cap.isOpened()):
-        ret, frame = cap.read()
-        count = (count + 1) % 5
-
-        if ret and not count:
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img.flags.writeable = True
-
-            img = run_odt_and_draw_results(
-                img,
-                interpreter,
-                threshold=DETECTION_TRESHOLD
-            )
-
-            img.flags.writeable = False
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-            img_resized = cv2.resize(img, (IM_WIDTH_PX, IM_HEIGHT_PX))
-
-            cv2.imshow("Plate Tracking", img_resized)
-
-            # Stream Control
-            key = cv2.waitKey(1)
-            if key & 0xFF == ord('q'):
-                break
