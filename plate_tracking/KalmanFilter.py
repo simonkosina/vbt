@@ -33,7 +33,7 @@ class KalmanFilter(object):
                              [0, (self.dt**2)/2],
                              [self.dt, 0],
                              [0, self.dt]])
-        
+
         # Measurement mapping matrix
         self.H = np.array([[1, 0, 0, 0],
                              [0, 1, 0, 0]])

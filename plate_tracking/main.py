@@ -14,7 +14,7 @@ from odt import run_odt, draw_results, calc_bounding_box_center
 TRACKING_ID = 0 # User will be able to pick in the application
 MODEL_PATH = "plate_tracking/models/efficientdet_lite0_whole.tflite"
 # CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
-CAPTURE_SOURCE = "plate_tracking/samples/cut/024_dl_4_reps.mp4"
+CAPTURE_SOURCE = "plate_tracking/samples/raw/024_dl_4_reps.mp4"
 IM_HEIGHT_PX = 1000
 DETECTION_TRESHOLD = 0.5
 
@@ -31,8 +31,7 @@ if __name__ == "__main__":
     IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
 
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
-    # TODO: Play with different initialization parameters
-    kf_args = {'dt': 1/fps, 'ux': 0, 'uy': 0, 'std_acc': 1, 'xm_std': 0.1, 'ym_std': 0.1}
+    kf_args = {'dt': 1/fps, 'ux': 0, 'uy': 0, 'std_acc': 1, 'xm_std': 0.01, 'ym_std': 0.01}
     kfs = {}
 
     # Initialize tracking variables
@@ -102,6 +101,8 @@ if __name__ == "__main__":
                     data['y_filtered'].append(yk)
 
             # TODO: Run the prediction step if the object isn't detected.
+
+            # TODO: Rep counting based on dx, dy from calman filter?
 
             # Show results
             cv2.imshow("Plate Tracking", img_resized)
