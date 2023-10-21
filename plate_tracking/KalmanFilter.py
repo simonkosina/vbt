@@ -17,7 +17,7 @@ class KalmanFilter(object):
         self.dt = dt
         
         # Control input variables
-        self.u = np.array([[ux], [uy]])
+        # self.u = np.array([[ux], [uy]])
 
         # Initial state
         self.x = np.array([[x], [y], [0], [0]])
@@ -29,10 +29,10 @@ class KalmanFilter(object):
                              [0, 0, 0, 1]])
 
         # Control input matrix
-        self.B = np.array([[(self.dt**2)/2, 0],
-                             [0, (self.dt**2)/2],
-                             [self.dt, 0],
-                             [0, self.dt]])
+        # self.B = np.array([[(self.dt**2)/2, 0],
+        #                      [0, (self.dt**2)/2],
+        #                      [self.dt, 0],
+        #                      [0, self.dt]])
 
         # Measurement mapping matrix
         self.H = np.array([[1, 0, 0, 0],
@@ -53,11 +53,12 @@ class KalmanFilter(object):
 
     def predict(self):
         """Predict the state estimate x and error covariance P."""
-        self.x = self.A @ self.x + self.B @ self.u
+        self.x = self.A @ self.x
+        # self.x = self.A @ self.x + self.B @ self.u
         self.P = self.A @ self.P @ self.A.T + self.Q
 
         # Return the predicted position
-        return self.x[:2]
+        return self.x
     
     def update(self, z):
         """
@@ -74,4 +75,4 @@ class KalmanFilter(object):
         self.P = (I - (K @ self.H)) @ self.P
 
         # Return the estimated position
-        return self.x[:2]
+        return self.x
