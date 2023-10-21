@@ -1,13 +1,14 @@
 import numpy as np
 
 class KalmanFilter(object):
-    def __init__(self, x, y, dt, ux, uy, std_acc, xm_std, ym_std):
+    def __init__(self, x, y, dt, std_acc, xm_std, ym_std):
         """
+        Assumes zero initial accelaration. No need for control
+        input variables (u) and control input matrix (u).
+
         x: initial x position
         y: initial y position
         dt: sampling time
-        ux: accelaration in x-direction
-        uy: accelaration in y-direction
         std_acc: magnitude of the std of acceleration (process noise magnitude)
         xm_std: std of the measurement in x-direction
         ym_std: std of the measurement in y-direction
@@ -67,12 +68,17 @@ class KalmanFilter(object):
         """
         S = self.H @ self.P @ self.H.T + self.R
         K = self.P @ self.H.T @ np.linalg.inv(S)
-
         self.x = self.x + K @ (z - self.H @ self.x)
 
         I = np.eye(self.H.shape[1])
-
         self.P = (I - (K @ self.H)) @ self.P
 
+        print(self.P)
         # Return the estimated position
         return self.x
+
+    @property
+    def std_x(self);
+        return self.P[0][0]
+
+    # TODO: std of y, dx, dy

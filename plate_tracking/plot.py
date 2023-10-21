@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sns.set_theme(style='darkgrid')
-sns.set_palette(palette='Set1')
 
-# TODO: Constants from args
+# TODO: Args from constants
 
 TRACKING_ID = 0
-PICKLE_FILE = "samples/cut/024_dl_4_reps.pkl"
+# PICKLE_FILE = "samples/cut/024_dl_4_reps.pkl"
+PICKLE_FILE = "samples/cut/022_dl_4_reps.pkl"
+# PICKLE_FILE = "samples/cut/016_squat_8_reps.pkl"
 # PICKLE_FILE = "plate_tracking/samples/cut/024_dl_4_reps.pkl"
 
 df = pd.read_pickle(PICKLE_FILE)
@@ -42,9 +43,8 @@ sns.lineplot(
     x='time',
     y='value',
     hue='Position',
-    alpha=0.9,
     ax=pos_ax,
-    
+    palette='rocket'
 )
 sns.lineplot(
     raw,
@@ -52,28 +52,27 @@ sns.lineplot(
     y='value',
     hue='Position',
     alpha=0.4,
-    ax=pos_ax
+    ax=pos_ax,
+    palette='rocket'
 )
-
 sns.lineplot(
     df_vel,
     x='time',
     y='value',
     hue='Velocity',
     ax=vel_ax,
-    alpha=0.9
+    palette='rocket'
 )
 
 pos_ax.set(
-    ylabel='Normalized image coordinates',
+    ylabel='[Normalized image coordinates]',
     xlabel=None,
     title='Bar position over time',
-    ylim=(0,1)
 )
+pos_ax.legend(ncol=4)
 vel_ax.set(
-    ylabel=r'(Normalized image coordinates)$\times$s$^{-1}$',
+    ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
     xlabel=None,
-    ylim=(-0.5, 0.5),
     title='Bar speed over time'
 )
 

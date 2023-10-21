@@ -14,11 +14,11 @@ from odt import run_odt, draw_results, calc_bounding_box_center
 TRACKING_ID = 0  # User will be able to pick in the application
 MODEL_PATH = "plate_tracking/models/efficientdet_lite0_whole.tflite"
 # CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
-CAPTURE_SOURCE = "plate_tracking/samples/cut/024_dl_4_reps.mp4"
+CAPTURE_SOURCE = "plate_tracking/samples/cut/022_dl_4_reps.mp4"
 IM_HEIGHT_PX = 1000
 DETECTION_TRESHOLD = 0.5
 
-CREATE_DATAFRAME = True  # Creates a dataframe used by plot.py
+CREATE_DATAFRAME = False  # Creates a dataframe used by plot.py
 DATAFRAME_FILENAME = CAPTURE_SOURCE.split('.')[0] + '.pkl'
 
 if __name__ == "__main__":
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
     kf_args = {'dt': 1/fps, 'ux': 0, 'uy': 0,
-               'std_acc': 1, 'xm_std': 0.01, 'ym_std': 0.01}
+               'std_acc': 1, 'xm_std': 0.015, 'ym_std': 0.015}
     kfs = {}
 
     # Initialize tracking variables
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     while (cap.isOpened()):
         ret, frame = cap.read()
-        frame_count += 1  # TODO: Remove frame_count conditions
+        frame_count += 1
 
         if not ret:
             break
@@ -78,31 +78,31 @@ if __name__ == "__main__":
 
             img_resized = cv2.resize(img, (IM_WIDTH_PX, IM_HEIGHT_PX))
 
-            if CREATE_DATAFRAME:
-                for tracking_id, result in results.items():
-                    x_raw, y_raw = calc_bounding_box_center(
-                        result['bounding_box'])
-                    # TODO: Sort out the original/resized image coordinates
-                    # TODO: Display the estimated bar_bath
+            # if CREATE_DATAFRAME:
+            for tracking_id, result in results.items():
+                x_raw, y_raw = calc_bounding_box_center(
+                    result['bounding_box'])
+                # TODO: Sort out the original/resized image coordinates
+                # TODO: Display the estimated bar_bath
 
-                    if tracking_id not in kfs:
-                        kfs[tracking_id] = KalmanFilter(
-                            x_raw, y_raw, **kf_args)
+                if tracking_id not in kfs:
+                    kfs[tracking_id] = KalmanFilter(
+                        x_raw, y_raw, **kf_args)
 
-                    kfs[tracking_id].predict()
-                    x, y, dx, dy = kfs[tracking_id].update([[x_raw], [y_raw]]).squeeze()
+                kfs[tracking_id].predict()
+                x, y, dx, dy = kfs[tracking_id].update([[x_raw], [y_raw]]).squeeze()
 
-                    data['id'].append(tracking_id)
-                    data['time'].append(time)
-                    data['x_raw'].append(x_raw)
-                    data['y_raw'].append(y_raw)
-                    data['x_filtered'].append(x)
-                    data['y_filtered'].append(y)
-                    data['dx'].append(dx)
-                    data['dy'].append(dy)
+                data['id'].append(tracking_id)
+                data['time'].append(time)
+                data['x_raw'].append(x_raw)
+                data['y_raw'].append(y_raw)
+                data['x_filtered'].append(x)
+                data['y_filtered'].append(y)
+                data['dx'].append(dx)
+                data['dy'].append(dy)
 
             # TODO: Run the prediction step if the object isn't detected.
-            # TODO: Rep counting based on dx, dy from calman filter?
+            # TODO: Rep counting based on dx, dy from calman filter? Use the P matrix from K.F. to asses std in velocity/position for implementing tresholds.
 
             # Show results
             cv2.imshow("Plate Tracking", img_resized)
