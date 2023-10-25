@@ -9,10 +9,8 @@ sns.set_theme(style='darkgrid')
 # TODO: Args from constants
 
 TRACKING_ID = 0
-# PICKLE_FILE = "samples/cut/024_dl_4_reps.pkl"
-PICKLE_FILE = "samples/cut/022_dl_4_reps.pkl"
-# PICKLE_FILE = "samples/cut/016_squat_8_reps.pkl"
-# PICKLE_FILE = "plate_tracking/samples/cut/024_dl_4_reps.pkl"
+# PICKLE_FILE = "samples/raw/021_bp_8_reps.pkl"
+PICKLE_FILE = "samples/raw/019_squat_4_reps.pkl"
 
 df = pd.read_pickle(PICKLE_FILE)
 df = df.query('id == 0').drop(columns=['id'])

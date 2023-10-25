@@ -1,38 +1,46 @@
-# TODO: Better handle the original/resized img coordinates in bar_paths and in graphs
 # TODO: Cite https://www.tensorflow.org/lite/models/modify/model_maker/object_detection#run_object_detection_and_show_the_detection_results
 # TODO: Can't let the plates be detected in different order. Let the user pick the right one, if multiple plates detected and based on distance, decide which is which.
 # TODO: CAPTURE_SOURCE, THRESHOLD, HEIGHT, CREATE_DATAFRAME, MODEL_PATH to click args
 
+import click
+import numpy as np
 import cv2
 import tensorflow as tf
 import pandas as pd
+import sys
 import os
 
 from KalmanFilter import KalmanFilter
-from odt import run_odt, draw_results, calc_bounding_box_center
+from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center
 
-TRACKING_ID = 0  # User will be able to pick in the application
-MODEL_PATH = "plate_tracking/models/efficientdet_lite0_whole.tflite"
-# CAPTURE_SOURCE = "plate_tracking/samples/cut/016_squat_8_reps.mp4"
-CAPTURE_SOURCE = "plate_tracking/samples/cut/022_dl_4_reps.mp4"
-IM_HEIGHT_PX = 1000
-DETECTION_TRESHOLD = 0.5
+COLORS = [(115, 3, 252), (255, 255, 255)]
+CREATE_DATAFRAME = True  # Creates a dataframe used by plot.py
 
-CREATE_DATAFRAME = False  # Creates a dataframe used by plot.py
-DATAFRAME_FILENAME = CAPTURE_SOURCE.split('.')[0] + '.pkl'
-
-if __name__ == "__main__":
+# TODO: create_dataframe and dataframe path attributes
+@click.command()
+@click.argument('capture_source', type=str)
+@click.option('--model_path', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection', type=str)
+@click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float)
+@click.option('--display_image_height', default=1000, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
+def main(capture_source, model_path, detection_treshold, display_image_height):
+    """
+    Visualize the object detection model for barbell tracking on a video
+    and create a dataframe containing the detected objects their raw
+    and filtered positions and velocities at specific times in the video. 
+    """
     # Gather data about the video
-    cap = cv2.VideoCapture(CAPTURE_SOURCE)
+    cap = cv2.VideoCapture(capture_source)
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    RATIO = float(frame_width)/float(frame_height)
-    IM_WIDTH_PX = int(IM_HEIGHT_PX*RATIO)
+    w2h_ratio = float(frame_width)/float(frame_height)
+    display_image_width = int(display_image_height*w2h_ratio)
+    
+    model_name = os.path.basename(model_path).split('.')[0]
 
+    return
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
-    kf_args = {'dt': 1/fps, 'ux': 0, 'uy': 0,
-               'std_acc': 1, 'xm_std': 0.015, 'ym_std': 0.015}
+    kf_args = {'dt': 1/fps, 'std_acc': 1, 'xm_std': 0.015, 'ym_std': 0.015}
     kfs = {}
 
     # Initialize tracking variables
@@ -42,10 +50,11 @@ if __name__ == "__main__":
 
     # Store bar paths, key is object's tracking id, values are lists tuples [x, y]
     # representing the original image coordinates.
-    bar_paths = {}
+    raw_bar_paths = {}
+    filtered_bar_paths = {}
 
     # Initialize the tflite interpreter
-    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH, num_threads=16)
+    interpreter = tf.lite.Interpreter(model_path=model_path, num_threads=16)
     interpreter.allocate_tensors()
 
     while (cap.isOpened()):
@@ -64,34 +73,60 @@ if __name__ == "__main__":
             results = run_odt(
                 frame=img,
                 interpreter=interpreter,
-                threshold=DETECTION_TRESHOLD
-            )
-
-            img = draw_results(
-                image=img,
-                results=results,
-                bar_paths=bar_paths
+                threshold=detection_treshold
             )
 
             img.flags.writeable = False
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-            img_resized = cv2.resize(img, (IM_WIDTH_PX, IM_HEIGHT_PX))
+            # TODO: Might want to keep the results
+            for kf in kfs.values():
+                kf.predict()
 
-            # if CREATE_DATAFRAME:
             for tracking_id, result in results.items():
+                draw_bounding_box(
+                    image=img,
+                    tracking_id=tracking_id,
+                    obj=result,
+                    color=COLORS[0]
+                )
+
+                # Center in normalized image coordinates
                 x_raw, y_raw = calc_bounding_box_center(
                     result['bounding_box'])
-                # TODO: Sort out the original/resized image coordinates
-                # TODO: Display the estimated bar_bath
 
+                # Initialize Kalman Filter if a new object detected
                 if tracking_id not in kfs:
                     kfs[tracking_id] = KalmanFilter(
                         x_raw, y_raw, **kf_args)
 
-                kfs[tracking_id].predict()
-                x, y, dx, dy = kfs[tracking_id].update([[x_raw], [y_raw]]).squeeze()
+                # Estimated positions and velocities
+                x, y, dx, dy = kfs[tracking_id].update(
+                    [[x_raw], [y_raw]]).squeeze()
 
+                # Bounding box center in image coordinates
+                raw_center = np.array(
+                    [x_raw*img.shape[1], y_raw*img.shape[0]], dtype=np.int32)
+                filtered_center = np.array(
+                    [x*img.shape[1], y*img.shape[0]], dtype=np.int32)
+
+                # Store and draw the bar paths
+                if tracking_id in raw_bar_paths:
+                    raw_bar_paths[tracking_id] = np.concatenate(
+                        (raw_bar_paths[tracking_id], [raw_center]), dtype=np.int32)
+                    filtered_bar_paths[tracking_id] = np.concatenate(
+                        (filtered_bar_paths[tracking_id], [filtered_center]), dtype=np.int32)
+                else:
+                    raw_bar_paths[tracking_id] = np.array(
+                        [raw_center], np.int32)
+                    filtered_bar_paths[tracking_id] = np.array(
+                        [filtered_center], np.int32)
+
+                draw_bar_path(img, raw_bar_paths[tracking_id], color=COLORS[0])
+                draw_bar_path(
+                    img, filtered_bar_paths[tracking_id], color=COLORS[1])
+
+                # Append data to the dataframe
                 data['id'].append(tracking_id)
                 data['time'].append(time)
                 data['x_raw'].append(x_raw)
@@ -101,10 +136,11 @@ if __name__ == "__main__":
                 data['dx'].append(dx)
                 data['dy'].append(dy)
 
-            # TODO: Run the prediction step if the object isn't detected.
             # TODO: Rep counting based on dx, dy from calman filter? Use the P matrix from K.F. to asses std in velocity/position for implementing tresholds.
+            # TODO: Detect the beginning of the exercise (ask user if he'll be reracking, if yes give a signal when a new stabilised position has been achieved)
 
             # Show results
+            img_resized = cv2.resize(img, (display_image_width, display_image_height))
             cv2.imshow("Plate Tracking", img_resized)
 
             # Stream Control
@@ -115,6 +151,11 @@ if __name__ == "__main__":
     cap.release()
     cv2.destroyAllWindows()
 
-    if CREATE_DATAFRAME:
-        df = pd.DataFrame.from_dict(data)
-        df.to_pickle(DATAFRAME_FILENAME)
+    # if CREATE_DATAFRAME:
+    #     df_path = f'{capture_source.split(".")[0]}_idX_{model_name}.pkl'
+    #     df = pd.DataFrame.from_dict(data)
+    #     df.to_pickle(df_path)
+
+
+if __name__ == "__main__":
+    main()

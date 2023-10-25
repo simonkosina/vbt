@@ -7,9 +7,6 @@ from math import sqrt
 # Better if GPU's not used for tflite inference
 tf.config.set_visible_devices([], 'GPU')
 
-# Define a list of colors for visualization
-COLORS = [[255, 0, 255]]
-
 
 def preprocess_image(frame, input_size):
     """Preprocess the input image to feed to the TFLite model"""
@@ -68,6 +65,9 @@ def find_closest_object(box, prev_results):
             best_distance = distance
             best_id = tracking_id
 
+    # FIXME: Can use the 3stds rule to filter out big diviations.
+    # FIXME: too fast jumps aren't probably the same object (016_squat_8reps.mp4)
+    # FIXME: need to implement an overlap treshold (008_sdl_9reps.mp4)
     return best_id, check_box_overlap_2d(best_box, box)
 
 
@@ -110,7 +110,7 @@ def detect_objects(interpreter, image, threshold):
     # Remember results to identify objects in next detection
     if hasattr(detect_objects, "prev_results"):
         detect_objects.prev_results.update(results)
-    else:
+    elif results:
         detect_objects.prev_results = results
 
     return results, classes
@@ -129,48 +129,32 @@ def run_odt(frame, interpreter, threshold=0.5):
     )
 
     # Run object detection on the input image
-    results, classes = detect_objects(
+    results, _ = detect_objects(
         interpreter, preprocessed_image, threshold=threshold)
 
     return results
 
 
-def draw_results(image, results, bar_paths):
-    # Plot the detection results on the input image
-    original_image_np = np.array(image, dtype=np.uint8)
+def draw_bounding_box(image, tracking_id, obj, color):
+    # Convert the object bounding box from relative coordinates to absolute
+    # coordinates based on the original image resolution
+    ymin, xmin, ymax, xmax = obj['bounding_box']
+    xmin = int(xmin * image.shape[1])
+    xmax = int(xmax * image.shape[1])
+    ymin = int(ymin * image.shape[0])
+    ymax = int(ymax * image.shape[0])
 
-    for tracking_id, obj in results.items():
-        # Convert the object bounding box from relative coordinates to absolute
-        # coordinates based on the original image resolution
-        ymin, xmin, ymax, xmax = obj['bounding_box']
-        xmin = int(xmin * original_image_np.shape[1])
-        xmax = int(xmax * original_image_np.shape[1])
-        ymin = int(ymin * original_image_np.shape[0])
-        ymax = int(ymax * original_image_np.shape[0])
+    # Draw the bounding box and label on the image
+    cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color, 2)
 
-        # Find the class index of the current object
-        class_id = int(obj['class_id'])
+    # Make adjustments to make the label visible for all objects
+    y = ymin - 15 if ymin - 15 > 15 else ymin + 15
+    label = "{:.0f}%, tracking_id: {}".format(
+        obj['score'] * 100, tracking_id)
+    cv2.putText(image, label, (xmin, y),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
 
-        # Draw the bounding box and label on the image
-        color = [int(c) for c in COLORS[class_id]]
-        cv2.rectangle(original_image_np, (xmin, ymin), (xmax, ymax), color, 2)
-        # Draw the bar path
-        center = [round((xmin + xmax) / 2), round((ymin + ymax) / 2)]
-        if tracking_id in bar_paths:
-            bar_paths[tracking_id] = np.concatenate(
-                (bar_paths[tracking_id], [center]), dtype=np.int32)
-        else:
-            bar_paths[tracking_id] = np.array([center], np.int32)
-        cv2.polylines(original_image_np, [
-                      bar_paths[tracking_id]], isClosed=False, color=color, thickness=2)
-        # Make adjustments to make the label visible for all objects
-        y = ymin - 15 if ymin - 15 > 15 else ymin + 15
-        label = "{:.0f}%, tracking_id: {}".format(
-            obj['score'] * 100, tracking_id)
-        cv2.putText(original_image_np, label, (xmin, y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
 
-    # Return the final image
-    original_uint8 = original_image_np.astype(np.uint8)
-
-    return original_uint8
+def draw_bar_path(image, bar_path, color):
+    cv2.polylines(image, [bar_path], isClosed=False, color=color, thickness=2)
+    cv2.circle(image, center=bar_path[-1], radius=5, color=color, thickness=2)

@@ -20,7 +20,7 @@ class KalmanFilter(object):
         # Control input variables
         # self.u = np.array([[ux], [uy]])
 
-        # Initial state
+        # Initial state [x, y, dx, dy]^T
         self.x = np.array([[x], [y], [0], [0]])
 
         # State transition matrix
@@ -73,12 +73,21 @@ class KalmanFilter(object):
         I = np.eye(self.H.shape[1])
         self.P = (I - (K @ self.H)) @ self.P
 
-        print(self.P)
         # Return the estimated position
         return self.x
 
     @property
-    def std_x(self);
+    def std_x(self):
         return self.P[0][0]
 
-    # TODO: std of y, dx, dy
+    @property
+    def std_y(self):
+        return self.P[1][1]
+
+    @property
+    def std_dx(self):
+        return self.P[2][2]
+    
+    @property
+    def std_dy(self):
+        return self.P[3][3]
