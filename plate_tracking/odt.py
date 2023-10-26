@@ -113,11 +113,11 @@ def detect_objects(interpreter, image, threshold):
     elif results:
         detect_objects.prev_results = results
 
-    return results, classes
+    return results
 
 
 def run_odt(frame, interpreter, threshold=0.5):
-    """Run object detection on the input image and draw the detection results"""
+    """Run object detection on the input image."""
     # Load the input shape required by the model
     _, input_height, input_width, _ = interpreter.get_input_details()[
         0]['shape']
@@ -129,13 +129,14 @@ def run_odt(frame, interpreter, threshold=0.5):
     )
 
     # Run object detection on the input image
-    results, _ = detect_objects(
+    results = detect_objects(
         interpreter, preprocessed_image, threshold=threshold)
 
     return results
 
 
 def draw_bounding_box(image, tracking_id, obj, color):
+    """Draw a bounding box based on the passed in results object."""
     # Convert the object bounding box from relative coordinates to absolute
     # coordinates based on the original image resolution
     ymin, xmin, ymax, xmax = obj['bounding_box']
@@ -156,5 +157,6 @@ def draw_bounding_box(image, tracking_id, obj, color):
 
 
 def draw_bar_path(image, bar_path, color):
+    """Draw a bar path based on the passed in list of coordinates."""
     cv2.polylines(image, [bar_path], isClosed=False, color=color, thickness=2)
-    cv2.circle(image, center=bar_path[-1], radius=5, color=color, thickness=2)
+    cv2.circle(image, center=bar_path[-1], radius=10, color=color, thickness=-1)

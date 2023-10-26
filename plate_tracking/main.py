@@ -1,44 +1,60 @@
 # TODO: Cite https://www.tensorflow.org/lite/models/modify/model_maker/object_detection#run_object_detection_and_show_the_detection_results
-# TODO: Can't let the plates be detected in different order. Let the user pick the right one, if multiple plates detected and based on distance, decide which is which.
-# TODO: CAPTURE_SOURCE, THRESHOLD, HEIGHT, CREATE_DATAFRAME, MODEL_PATH to click args
 
 import click
 import numpy as np
 import cv2
 import tensorflow as tf
 import pandas as pd
-import sys
 import os
 
 from KalmanFilter import KalmanFilter
 from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center
 
 COLORS = [(115, 3, 252), (255, 255, 255)]
-CREATE_DATAFRAME = True  # Creates a dataframe used by plot.py
 
-# TODO: create_dataframe and dataframe path attributes
+
 @click.command()
-@click.argument('capture_source', type=str)
-@click.option('--model_path', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection', type=str)
+@click.argument('src', type=str, nargs=-1)
+@click.option('--model', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection.', type=str)
 @click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float)
 @click.option('--display_image_height', default=1000, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
-def main(capture_source, model_path, detection_treshold, display_image_height):
+@click.option('--df_export', is_flag=True, help='Export dataframe as a pickle file to the same directory as the video source.')
+def main(src, model, detection_treshold, display_image_height, df_export, df_path):
     """
     Visualize the object detection model for barbell tracking on a video
     and create a dataframe containing the detected objects their raw
     and filtered positions and velocities at specific times in the video. 
     """
+    for s in src:
+        if not os.path.isfile(s):
+            raise FileNotFoundError()
+
+        # Initialize the tflite interpreter
+        interpreter = tf.lite.Interpreter(model_path=model, num_threads=16)
+        interpreter.allocate_tensors()
+
+        data = track(s, interpreter, detection_treshold, display_image_height)
+
+        # FIXME: Replace idX with the id of the right object.
+        if df_export:
+            model_name = os.path.basename(model).split('.')[0]
+            df_path = f'{src.split(".")[0]}_idX_{model_name}.pkl'
+            df = pd.DataFrame.from_dict(data)
+            df.to_pickle(df_path)
+
+
+def track(src, interpreter, detection_treshold, display_image_height):
+    """
+    Runs the model inference visualization and returns captured data.
+    """
     # Gather data about the video
-    cap = cv2.VideoCapture(capture_source)
+    cap = cv2.VideoCapture(src)
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     w2h_ratio = float(frame_width)/float(frame_height)
     display_image_width = int(display_image_height*w2h_ratio)
-    
-    model_name = os.path.basename(model_path).split('.')[0]
 
-    return
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
     kf_args = {'dt': 1/fps, 'std_acc': 1, 'xm_std': 0.015, 'ym_std': 0.015}
     kfs = {}
@@ -52,10 +68,6 @@ def main(capture_source, model_path, detection_treshold, display_image_height):
     # representing the original image coordinates.
     raw_bar_paths = {}
     filtered_bar_paths = {}
-
-    # Initialize the tflite interpreter
-    interpreter = tf.lite.Interpreter(model_path=model_path, num_threads=16)
-    interpreter.allocate_tensors()
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -151,10 +163,7 @@ def main(capture_source, model_path, detection_treshold, display_image_height):
     cap.release()
     cv2.destroyAllWindows()
 
-    # if CREATE_DATAFRAME:
-    #     df_path = f'{capture_source.split(".")[0]}_idX_{model_name}.pkl'
-    #     df = pd.DataFrame.from_dict(data)
-    #     df.to_pickle(df_path)
+    return data
 
 
 if __name__ == "__main__":

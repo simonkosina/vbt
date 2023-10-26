@@ -5,6 +5,7 @@ plate_tracking/tmp
 .vscode
 *.pkl
 *.zip
+plate_tracking/videos/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
