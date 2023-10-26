@@ -38,7 +38,7 @@ def visualize(src, show_fig, save_fig):
     video, tracking_id, model = result.groups()
 
     df = pd.read_pickle(src)
-    df = df.query('id == 0').drop(columns=['id'])
+    df = df.query(f'id == {tracking_id}').drop(columns=['id'])
 
     df_pos = df.drop(columns=['dx', 'dy'])
     df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered']).rename(

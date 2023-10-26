@@ -7,8 +7,9 @@ import tensorflow as tf
 import pandas as pd
 import os
 
+from MovingAverage import MovingAverage
 from KalmanFilter import KalmanFilter
-from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center
+from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_normalized_diameter
 
 COLORS = [(115, 3, 252), (255, 255, 255)]
 
@@ -16,10 +17,11 @@ COLORS = [(115, 3, 252), (255, 255, 255)]
 @click.command()
 @click.argument('src', type=str, nargs=-1)
 @click.option('--model', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection.', type=str)
+@click.option('--diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float)
 @click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float)
 @click.option('--display_image_height', default=1000, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
 @click.option('--df_export', is_flag=True, help='Export dataframe as a pickle file to the same directory as the video source.')
-def main(src, model, detection_treshold, display_image_height, df_export, df_path):
+def main(src, model, diameter, detection_treshold, display_image_height, df_export):
     """
     Visualize the object detection model for barbell tracking on a video
     and create a dataframe containing the detected objects their raw
@@ -33,17 +35,18 @@ def main(src, model, detection_treshold, display_image_height, df_export, df_pat
         interpreter = tf.lite.Interpreter(model_path=model, num_threads=16)
         interpreter.allocate_tensors()
 
-        data = track(s, interpreter, detection_treshold, display_image_height)
+        data = track(s, interpreter, diameter,
+                     detection_treshold, display_image_height)
 
         # FIXME: Replace idX with the id of the right object.
         if df_export:
             model_name = os.path.basename(model).split('.')[0]
-            df_path = f'{src.split(".")[0]}_idX_{model_name}.pkl'
+            df_path = f'{s.split(".")[0]}_idX_{model_name}.pkl'
             df = pd.DataFrame.from_dict(data)
             df.to_pickle(df_path)
 
 
-def track(src, interpreter, detection_treshold, display_image_height):
+def track(src, interpreter, diameter, detection_treshold, display_image_height):
     """
     Runs the model inference visualization and returns captured data.
     """
@@ -56,8 +59,11 @@ def track(src, interpreter, detection_treshold, display_image_height):
     display_image_width = int(display_image_height*w2h_ratio)
 
     # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
-    kf_args = {'dt': 1/fps, 'std_acc': 1, 'xm_std': 0.015, 'ym_std': 0.015}
+    kf_args = {'dt': 1/fps, 'std_acc': 1, 'xm_std': 0.01, 'ym_std': 0.01}
     kfs = {}
+
+    # Initialize the moving average filters for each tracking_id
+    mas = {}
 
     # Initialize tracking variables
     frame_count = 0
@@ -111,6 +117,12 @@ def track(src, interpreter, detection_treshold, display_image_height):
                 if tracking_id not in kfs:
                     kfs[tracking_id] = KalmanFilter(
                         x_raw, y_raw, **kf_args)
+                    mas[tracking_id] = MovingAverage(window_size=fps*10)
+
+                norm_diameter = mas[tracking_id].process(
+                    calc_normalized_diameter(result['bounding_box'])
+                )
+                print(norm_diameter)
 
                 # Estimated positions and velocities
                 x, y, dx, dy = kfs[tracking_id].update(
@@ -152,7 +164,8 @@ def track(src, interpreter, detection_treshold, display_image_height):
             # TODO: Detect the beginning of the exercise (ask user if he'll be reracking, if yes give a signal when a new stabilised position has been achieved)
 
             # Show results
-            img_resized = cv2.resize(img, (display_image_width, display_image_height))
+            img_resized = cv2.resize(
+                img, (display_image_width, display_image_height))
             cv2.imshow("Plate Tracking", img_resized)
 
             # Stream Control

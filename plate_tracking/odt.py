@@ -17,9 +17,19 @@ def preprocess_image(frame, input_size):
     return resized_img, original_img
 
 
-def calc_bounding_box_center(box):
+def calc_normalized_diameter(bounding_box, xw=0.5, yw=0.5):
+    """
+    Calculates the diameter of the detected weight plate
+    in normalized image coordinates.
+    """
+    ymin, xmin, ymax, xmax = bounding_box
+
+    return (ymax - ymin) * yw + (xmax - xmin) * xw
+
+
+def calc_bounding_box_center(bounding_box):
     """Calculates the center of a bounding box."""
-    ymin, xmin, ymax, xmax = box
+    ymin, xmin, ymax, xmax = bounding_box
     center = ((xmin + xmax) / 2, (ymin + ymax) / 2)
     return center
 
