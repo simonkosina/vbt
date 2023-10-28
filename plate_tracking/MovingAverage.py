@@ -3,7 +3,7 @@ import numpy as np
 
 class MovingAverage(object):
     def __init__(self, window_size):
-        self.window_size = window_size
+        self.window_size = int(window_size)
         self.index = 0
         self.values = []
     

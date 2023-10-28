@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import re
 
+from RepCounter import find_concentrics_in_df, Phase
 
 sns.set_theme(style='darkgrid')
+sns.set_palette('rocket')
 filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              _id        # Skip the '_id' part
                              (\d+)      # Match the object tracking id
@@ -15,6 +17,10 @@ filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              \.pkl      # Ignore the file extension
                              """, re.VERBOSE)
 
+phase_cmap = {
+    Phase.CONCENTRIC: 'C1',
+    Phase.ECCENTRIC: 'C3'
+}
 
 @click.command()
 @click.argument('src', type=str, nargs=-1)
@@ -40,8 +46,8 @@ def visualize(src, show_fig, save_fig):
     df = pd.read_pickle(src)
     df = df.query(f'id == {tracking_id}').drop(columns=['id'])
 
-    df_pos = df.drop(columns=['dx', 'dy'])
-    df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered']).rename(
+    df_pos = df.drop(columns=['dx', 'dy', 'norm_diameter'])
+    df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered', 'norm_diameter']).rename(
         columns={'dx': 'x', 'dy': 'y'})
 
     # Reshape the dataframe into a long format
@@ -91,6 +97,13 @@ def visualize(src, show_fig, save_fig):
         palette='rocket'
     )
 
+    # Display repetition phases as background colors
+    phases = find_concentrics_in_df(df)
+
+    for phase in phases:
+        pos_ax.axvspan(xmin=phase.time_start, xmax=phase.time_end, facecolor=phase_cmap[phase.type], alpha=0.15)
+        vel_ax.axvspan(xmin=phase.time_start, xmax=phase.time_end, facecolor=phase_cmap[phase.type], alpha=0.15)
+
     pos_ax.set(
         ylabel='[Normalized image coordinates]',
         xlabel=None,
@@ -102,6 +115,7 @@ def visualize(src, show_fig, save_fig):
         xlabel=None,
         title='Bar speed over time'
     )
+    vel_ax.legend(ncol=1, loc='upper left')
 
     plt.xlabel('Time [s]')
     plt.tight_layout()

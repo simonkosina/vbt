@@ -73,7 +73,7 @@ class KalmanFilter(object):
         I = np.eye(self.H.shape[1])
         self.P = (I - (K @ self.H)) @ self.P
 
-        # Return the estimated position
+        # Return new estimated state
         return self.x
 
     @property

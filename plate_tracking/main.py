@@ -11,8 +11,10 @@ from MovingAverage import MovingAverage
 from KalmanFilter import KalmanFilter
 from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_normalized_diameter
 
-COLORS = [(115, 3, 252), (255, 255, 255)]
 
+tf.config.set_visible_devices([], 'GPU')
+
+COLORS = [(115, 3, 252), (255, 255, 255)]
 
 @click.command()
 @click.argument('src', type=str, nargs=-1)
@@ -38,11 +40,20 @@ def main(src, model, diameter, detection_treshold, display_image_height, df_expo
         data = track(s, interpreter, diameter,
                      detection_treshold, display_image_height)
 
-        # FIXME: Replace idX with the id of the right object.
         if df_export:
-            model_name = os.path.basename(model).split('.')[0]
-            df_path = f'{s.split(".")[0]}_idX_{model_name}.pkl'
             df = pd.DataFrame.from_dict(data)
+            df = df.sort_values(by=['id', 'time'])
+            df2 = df.copy()
+
+            # Calculate the Euclidean distances for each row
+            df2['distance'] = np.where(df2['id'] == df2['id'].shift(), ((df2['x_filtered'] - df2['x_filtered'].shift())**2 + (df2['y_filtered'] - df2['y_filtered'].shift())**2)**0.5, np.nan)
+
+            # Calculate the cumulative distance for each 'id'
+            df2['cumulative_distance'] = df2.groupby('id')['distance'].cumsum()
+            max_distance_id = df2.loc[df2['cumulative_distance'].idxmax(), 'id']
+
+            model_name = os.path.basename(model).split('.')[0]
+            df_path = f'{s.split(".")[0]}_id{max_distance_id}_{model_name}.pkl'
             df.to_pickle(df_path)
 
 
@@ -68,7 +79,8 @@ def track(src, interpreter, diameter, detection_treshold, display_image_height):
     # Initialize tracking variables
     frame_count = 0
     data = {'id': [], 'time': [], 'x_raw': [], 'y_raw': [],
-            'x_filtered': [], 'y_filtered': [], 'dx': [], 'dy': []}
+            'x_filtered': [], 'y_filtered': [], 'dx': [], 'dy': [],
+            'norm_diameter': []}
 
     # Store bar paths, key is object's tracking id, values are lists tuples [x, y]
     # representing the original image coordinates.
@@ -122,7 +134,6 @@ def track(src, interpreter, diameter, detection_treshold, display_image_height):
                 norm_diameter = mas[tracking_id].process(
                     calc_normalized_diameter(result['bounding_box'])
                 )
-                print(norm_diameter)
 
                 # Estimated positions and velocities
                 x, y, dx, dy = kfs[tracking_id].update(
@@ -159,14 +170,12 @@ def track(src, interpreter, diameter, detection_treshold, display_image_height):
                 data['y_filtered'].append(y)
                 data['dx'].append(dx)
                 data['dy'].append(dy)
-
-            # TODO: Rep counting based on dx, dy from calman filter? Use the P matrix from K.F. to asses std in velocity/position for implementing tresholds.
-            # TODO: Detect the beginning of the exercise (ask user if he'll be reracking, if yes give a signal when a new stabilised position has been achieved)
+                data['norm_diameter'].append(norm_diameter)
 
             # Show results
             img_resized = cv2.resize(
                 img, (display_image_width, display_image_height))
-            cv2.imshow("Plate Tracking", img_resized)
+            cv2.imshow(os.path.basename(src), img_resized)
 
             # Stream Control
             key = cv2.waitKey(1)
