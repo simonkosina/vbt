@@ -19,7 +19,6 @@ COLORS = [(115, 3, 252), (255, 255, 255)]
 @click.command()
 @click.argument('src', type=str, nargs=-1)
 @click.option('--model', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection.', type=str)
-@click.option('--diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float)
 @click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float)
 @click.option('--display_image_height', default=1000, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
 @click.option('--df_export', is_flag=True, help='Export dataframe as a pickle file to the same directory as the video source.')

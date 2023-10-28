@@ -1,76 +1,70 @@
+from Phase import Phase
+
+
 # TODO: Fine tune the treshold value.
 VELOCITY_TRESHOLD = 0.03
 
 
-class Phase(object):
-    CONCENTRIC = 0
-    ECCENTRIC = 1
-    HOLD = 2
-
-    def __init__(self, time_start, time_end, y_start, y_end, phase_type):
-        self.time_start = time_start
-        self.time_end = time_end
-        self.y_start = y_start
-        self.y_end = y_end
-        self.type = phase_type
-
-    @property
-    def y_diff(self):
-        return abs(self.y_start - self.y_end)
-
-    def __str__(self):
-        if self.type == Phase.CONCENTRIC:
-            phase_type = 'concentric'
-        elif self.type == Phase.ECCENTRIC:
-            phase_type = 'eccentric'
-        else:
-            phase_type = 'hold'
-
-        return f'{phase_type}, t_start: {self.time_start}, t_end: {self.time_end}, y_start: {self.y_start}, y_end: {self.y_end}'
-
-
 class RepCounter(object):
-    def __init__(self):
+    def __init__(self, plate_diameter):
+        """
+        Processes meassurements resulting in a list
+        of Phase objects holding the information about
+        each concentric and eccentric phase performed.
+
+        Takes in the plate diameter (in meters) used in the video to transform
+        normalized image coordinates into meters.
+        """
+        self.plate_diameter = plate_diameter
+
+        # Initialize variables needed for measurement processing
         self.current_phase = Phase.HOLD
         self.phases = []
         self.max_y_diff = None
+        self.acc_distance = 0
+        self.y_prev = None
+        self.x_prev = None
 
-    def _del_list_by_indexes(self, list, is_to_remove):
-        return [el for i, el in enumerate(list) if i not in is_to_remove]
+    def _filter_phases(self, phase_type):
+        """
+        Check a list of Phase objects and based on the
+        range of motion in Y axis filter out the exercise
+        setup and rerack.
+        """
+        def del_list_by_indexes(list, is_to_remove):
+            return [el for i, el in enumerate(list) if i not in is_to_remove]
+
+        diff_treshold = self.max_y_diff / 2
+        is_to_remove = set()
+
+        for i, phase in enumerate(self.phases):
+            if phase.type == phase_type and phase.y_diff < diff_treshold:
+                is_to_remove.add(i)
+
+        self.phases = del_list_by_indexes(self.phases, is_to_remove)
 
     def _filter_concentrics(self):
         """
-        Check previous concetrics phases and their range of motion
-        to filter out exercise setup.
+        Check previous concetric phases and based on the
+        range of motion in Y axis to filter out exercise
+        and rerack.
         """
-        diff_treshold = self.max_y_diff / 2
-        is_to_remove = set()
-
-        for i, phase in enumerate(self.phases):
-            if phase.type == Phase.CONCENTRIC and phase.y_diff < diff_treshold:
-                is_to_remove.add(i)
-
-        self.phases = self._del_list_by_indexes(self.phases, is_to_remove)
+        self._filter_phases(Phase.CONCENTRIC)
 
     def _filter_eccentrics(self):
         """
-        Check previous eccentric phases and their range of motion
-        to filter out exercise setup.
+        Check previous eccentric phases and based on the
+        range of motion in Y axis to filter out exercise
+        and rerack.
         """
-        diff_treshold = self.max_y_diff / 2
-        is_to_remove = set()
+        self._filter_phases(Phase.ECCENTRIC)
 
-        for i, phase in enumerate(self.phases):
-            if phase.type == Phase.ECCENTRIC and phase.y_diff < diff_treshold:
-                is_to_remove.add(i)
-
-        self.phases = self._del_list_by_indexes(self.phases, is_to_remove)
-
-    def process_measurements(self, time, x, y, dx, dy):
+    def process_measurements(self, time, x, y, dx, dy, norm_diameter):
         if dy < -VELOCITY_TRESHOLD and self.current_phase == Phase.HOLD:
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.CONCENTRIC
+            self.acc_distance = 0
 
         if dy > 0 and self.current_phase == Phase.CONCENTRIC:
             # Remember the maximal ROM in Y axis
@@ -84,6 +78,7 @@ class RepCounter(object):
                     time_end=time,
                     y_start=self.y_start,
                     y_end=y,
+                    rom=self.acc_distance / norm_diameter * self.plate_diameter,
                     phase_type=self.current_phase
                 )
 
@@ -96,6 +91,7 @@ class RepCounter(object):
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.ECCENTRIC
+            self.acc_distance = 0
 
         if dy < 0 and self.current_phase == Phase.ECCENTRIC:
             # Remember the maximal ROM in Y axis
@@ -109,6 +105,7 @@ class RepCounter(object):
                     time_end=time,
                     y_start=self.y_start,
                     y_end=y,
+                    rom=self.acc_distance / norm_diameter * self.plate_diameter,
                     phase_type=self.current_phase
                 )
                 self.phases.append(phase)
@@ -116,22 +113,30 @@ class RepCounter(object):
 
             self.current_phase = Phase.HOLD
 
-    def end_processing(self, time, x, y, dx, dy):
+        if self.x_prev is not None and self.y_prev is not None:
+            self.acc_distance += ((x - self.x_prev)**2 +
+                                  (y - self.y_prev)**2)**0.5
+
+        self.x_prev = x
+        self.y_prev = y
+
+    def end_processing(self, time, x, y, dx, dy, norm_diameter):
         """
-        Check if concentric phase wasn't still in progress when video ended.
+        Check if concentric/eccentric phase wasn't still in progress when video ended.
         """
+        # TODO:
         if self.current_phase == Phase.CONCENTRIC:
-            self.timestamps.append((self.time_start, time))
-            self.ys.append((self.y_start, y))
-            self.current_phase = Phase.HOLD
+            pass
+        elif self.current_phase == Phase.ECCENTRIC:
+            pass
 
 
-def find_concentrics_in_df(df):
-    rep_counter = RepCounter()
+def find_concentrics_in_df(df, plate_diameter):
+    rep_counter = RepCounter(plate_diameter)
 
-    for _, (time, _, _, x, y, dx, dy, _) in df.iterrows():
-        rep_counter.process_measurements(time, x, y, dx, dy)
+    for _, (time, _, _, x, y, dx, dy, norm_diameter) in df.iterrows():
+        rep_counter.process_measurements(time, x, y, dx, dy, norm_diameter)
 
-    rep_counter.end_processing(time, x, y, dx, dy)
+    rep_counter.end_processing(time, x, y, dx, dy, norm_diameter)
 
     return rep_counter.phases
