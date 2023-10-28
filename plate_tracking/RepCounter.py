@@ -21,7 +21,8 @@ class RepCounter(object):
         self.current_phase = Phase.HOLD
         self.phases = []
         self.max_y_diff = None
-        self.acc_distance = 0
+        self.acc_dist_x = 0
+        self.acc_dist_y = 0
         self.y_prev = None
         self.x_prev = None
 
@@ -59,12 +60,13 @@ class RepCounter(object):
         """
         self._filter_phases(Phase.ECCENTRIC)
 
-    def process_measurements(self, time, x, y, dx, dy, norm_diameter):
+    def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
         if dy < -VELOCITY_TRESHOLD and self.current_phase == Phase.HOLD:
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.CONCENTRIC
-            self.acc_distance = 0
+            self.acc_dist_x = 0
+            self.acc_dist_y = 0
 
         if dy > 0 and self.current_phase == Phase.CONCENTRIC:
             # Remember the maximal ROM in Y axis
@@ -73,12 +75,14 @@ class RepCounter(object):
                 self.max_y_diff = y_diff
 
             if y_diff > self.max_y_diff / 2:
+                rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
+                    (self.acc_dist_y / norm_plate_height) * self.plate_diameter
                 phase = Phase(
                     time_start=self.time_start,
                     time_end=time,
                     y_start=self.y_start,
                     y_end=y,
-                    rom=self.acc_distance / norm_diameter * self.plate_diameter,
+                    rom=rom,
                     phase_type=self.current_phase
                 )
 
@@ -91,7 +95,8 @@ class RepCounter(object):
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.ECCENTRIC
-            self.acc_distance = 0
+            self.acc_dist_x = 0
+            self.acc_dist_y = 0
 
         if dy < 0 and self.current_phase == Phase.ECCENTRIC:
             # Remember the maximal ROM in Y axis
@@ -100,12 +105,14 @@ class RepCounter(object):
                 self.max_y_diff = y_diff
 
             if y_diff > self.max_y_diff / 2:
+                rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
+                    (self.acc_dist_y / norm_plate_height) * self.plate_diameter
                 phase = Phase(
                     time_start=self.time_start,
                     time_end=time,
                     y_start=self.y_start,
                     y_end=y,
-                    rom=self.acc_distance / norm_diameter * self.plate_diameter,
+                    rom=rom,
                     phase_type=self.current_phase
                 )
                 self.phases.append(phase)
@@ -114,13 +121,13 @@ class RepCounter(object):
             self.current_phase = Phase.HOLD
 
         if self.x_prev is not None and self.y_prev is not None:
-            self.acc_distance += ((x - self.x_prev)**2 +
-                                  (y - self.y_prev)**2)**0.5
+            self.acc_dist_x += abs(x - self.x_prev)
+            self.acc_dist_y += abs(y - self.y_prev)
 
         self.x_prev = x
         self.y_prev = y
 
-    def end_processing(self, time, x, y, dx, dy, norm_diameter):
+    def end_processing(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
         """
         Check if concentric/eccentric phase wasn't still in progress when video ended.
         """
@@ -134,9 +141,11 @@ class RepCounter(object):
 def find_concentrics_in_df(df, plate_diameter):
     rep_counter = RepCounter(plate_diameter)
 
-    for _, (time, _, _, x, y, dx, dy, norm_diameter) in df.iterrows():
-        rep_counter.process_measurements(time, x, y, dx, dy, norm_diameter)
+    for _, (time, _, _, x, y, dx, dy, norm_plate_height, norm_plate_width) in df.iterrows():
+        rep_counter.process_measurements(
+            time, x, y, dx, dy, norm_plate_height, norm_plate_width)
 
-    rep_counter.end_processing(time, x, y, dx, dy, norm_diameter)
+    rep_counter.end_processing(
+        time, x, y, dx, dy, norm_plate_height, norm_plate_width)
 
     return rep_counter.phases

@@ -17,14 +17,24 @@ def preprocess_image(frame, input_size):
     return resized_img, original_img
 
 
-def calc_normalized_diameter(bounding_box, xw=0.5, yw=0.5):
+def calc_plate_width(bounding_box):
     """
-    Calculates the diameter of the detected weight plate
-    in normalized image coordinates.
+    Calculate the width of a plate based on the
+    detected bounding box in normalized image coordinates.
     """
-    ymin, xmin, ymax, xmax = bounding_box
+    _, xmin, _, xmax = bounding_box
 
-    return (ymax - ymin) * yw + (xmax - xmin) * xw
+    return abs(xmax - xmin)
+
+
+def calc_plate_height(bounding_box):
+    """
+    Calculate the height of a plate based on the
+    detected bounding box in normalized image coordinates.
+    """
+    ymin, _, ymax, _ = bounding_box
+
+    return abs(ymax - ymin)
 
 
 def calc_bounding_box_center(bounding_box):
@@ -169,4 +179,5 @@ def draw_bounding_box(image, tracking_id, obj, color):
 def draw_bar_path(image, bar_path, color):
     """Draw a bar path based on the passed in list of coordinates."""
     cv2.polylines(image, [bar_path], isClosed=False, color=color, thickness=2)
-    cv2.circle(image, center=bar_path[-1], radius=10, color=color, thickness=-1)
+    cv2.circle(image, center=bar_path[-1],
+               radius=10, color=color, thickness=-1)

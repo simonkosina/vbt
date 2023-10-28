@@ -1,5 +1,5 @@
 plate_tracking/data
-plate_tracking/tmp
+tmp/*
 *.mp4
 .venv/
 .vscode

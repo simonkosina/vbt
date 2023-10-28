@@ -30,19 +30,23 @@ phase_cmap = {
 @click.option('--show_fig', is_flag=True, help='Show the figure.')
 @click.option('--save_fig', is_flag=True, help='Save the plots for each input file as a PDF to the same directory as the input pickle file.')
 @click.option('--plate_diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float)
-def main(src, show_fig, save_fig, plate_diameter):
+@click.option('--fig_dir', default=None, help='Directory for saving the figures.')
+def main(src, show_fig, save_fig, plate_diameter, fig_dir):
     """
     Visualize the bar position and speeds over time based
     on the passed in dataframe in the pickle format.
     """
+    if fig_dir is not None:
+        os.makedirs(fig_dir, exist_ok=True)
+
     for s in src:
         if not os.path.isfile(s):
             raise FileNotFoundError()
 
-        visualize(s, show_fig, save_fig, plate_diameter)
+        visualize(s, show_fig, save_fig, plate_diameter, fig_dir)
 
 
-def visualize(src, show_fig, save_fig, plate_diameter):
+def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     filename = os.path.basename(src)
     result = filename_regexp.match(filename)
     video, tracking_id, model = result.groups()
@@ -50,8 +54,8 @@ def visualize(src, show_fig, save_fig, plate_diameter):
     df = pd.read_pickle(src)
     df = df.query(f'id == {tracking_id}').drop(columns=['id'])
 
-    df_pos = df.drop(columns=['dx', 'dy', 'norm_diameter'])
-    df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered', 'norm_diameter']).rename(
+    df_pos = df.drop(columns=['dx', 'dy', 'norm_plate_height', 'norm_plate_width'])
+    df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered', 'norm_plate_height', 'norm_plate_width']).rename(
         columns={'dx': 'x', 'dy': 'y'})
 
     # Reshape the dataframe into a long format
@@ -161,7 +165,13 @@ def visualize(src, show_fig, save_fig, plate_diameter):
     plt.tight_layout()
 
     if save_fig:
-        path = f'{src.split(".")[0]}.pdf'
+        filename = f'{os.path.basename(src).split(".")[0]}.pdf'
+
+        if fig_dir is None:
+            path = filename
+        else:
+            path = os.path.join(fig_dir, filename)
+
         plt.savefig(path)
 
     if show_fig:
