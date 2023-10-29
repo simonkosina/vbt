@@ -6,10 +6,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+from math import ceil, floor
 from RepCounter import find_concentrics_in_df
 from Phase import Phase
 
-sns.set_theme(style='darkgrid')
+sns.set_theme(style='ticks')
 sns.set_palette('rocket')
 filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              _id        # Skip the '_id' part
@@ -141,7 +142,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
             # average concentric velocity [m/s]
             acv = phase.rom / phase.duration
             pos_ax.text(
-                x=(phase.time_start + phase.time_end) / 2,
+                x=(phase.time_start + phase.time_end) / 2 + 0.02,
                 y=pos_ylim[1] if pos_ax.get_ylim()[1] < 1 else pos_ax.get_ylim()[0] + 0.02,
                 s=f'{phase.rom:0.2f}',
                 horizontalalignment='center',
@@ -149,7 +150,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
                 rotation='vertical',
             )
             vel_ax.text(
-                x=(phase.time_start + phase.time_end) / 2,
+                x=(phase.time_start + phase.time_end) / 2 + 0.02,
                 y=vel_ylim[1],
                 s=f'{acv:0.2f}',
                 horizontalalignment='center',
@@ -168,6 +169,16 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     # Add legend to the plot
     fig.legend(handles=legend_patches)
     plt.xlabel('Time [s]')
+
+    x_max = ceil(vel_ax.get_xlim()[1])
+    x_min = floor(vel_ax.get_xlim()[0])
+    x_min = x_min - x_min % 5 # round down to nearest multiple of 5
+    major_ticks = range(x_min, x_max, 5)
+    minor_ticks = range(x_min, x_max, 1)
+
+    plt.xticks(major_ticks, major_ticks, minor=False) 
+    plt.xticks(minor_ticks, [], minor=True)
+
     plt.tight_layout()
 
     if save_fig:

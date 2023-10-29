@@ -28,6 +28,8 @@ class RepCounter(object):
         self.acc_dist_y = 0
         self.y_prev = None
         self.x_prev = None
+        
+        # TODO: Finish the rep counting offset
         self.y_max_value = -np.inf
         self.y_min_value = np.inf
         self.y_max_time = None
