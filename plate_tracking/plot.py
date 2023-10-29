@@ -113,7 +113,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
         ylabel='[Normalized image coordinates]',
         xlabel=None,
         title='Bar position over time, ROM for each concentric phase displayed in [m]',
-        ylim=[max(pos_ylim[0] - 0.1, 0), min(pos_ylim[1] + 0.1, 1)],
+        ylim=[max(pos_ylim[0] - 0.2, 0), min(pos_ylim[1] + 0.2, 1)],
         xlim=[start, end]
     )
     pos_ax.legend(ncol=4, loc='lower left')
@@ -124,7 +124,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
         xlabel=None,
         title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
         xlim=[start, end],
-        ylim=[vel_ylim[0] - 0.1, vel_ylim[1] + 0.1],
+        ylim=[vel_ylim[0] - 0.2, vel_ylim[1] + 0.2],
     )
     vel_ax.legend(ncol=1, loc='upper left')
 
@@ -141,14 +141,20 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
             # average concentric velocity [m/s]
             acv = phase.rom / phase.duration
             pos_ax.text(
-                x=phase.time_start + 0.1,
-                y=pos_ylim[1],
+                x=(phase.time_start + phase.time_end) / 2,
+                y=pos_ylim[1] if pos_ax.get_ylim()[1] < 1 else pos_ax.get_ylim()[0] + 0.02,
                 s=f'{phase.rom:0.2f}',
+                horizontalalignment='center',
+                verticalalignment='bottom',
+                rotation='vertical',
             )
             vel_ax.text(
-                x=phase.time_start + 0.1,
+                x=(phase.time_start + phase.time_end) / 2,
                 y=vel_ylim[1],
                 s=f'{acv:0.2f}',
+                horizontalalignment='center',
+                verticalalignment='center',
+                rotation='vertical',
             )
 
     # Create custom legend

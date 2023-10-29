@@ -9,7 +9,7 @@ import os
 
 from MovingAverage import MovingAverage
 from KalmanFilter import KalmanFilter
-from odt import run_odt, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_plate_height, calc_plate_width
+from odt import run_odt, detect_objects, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_plate_height, calc_plate_width
 
 
 tf.config.set_visible_devices([], 'GPU')
@@ -198,6 +198,11 @@ def track(src, interpreter, detection_treshold, display_image_height):
 
     cap.release()
     cv2.destroyAllWindows()
+
+    if hasattr(detect_objects, 'last_tracking_id'):
+        delattr(detect_objects, 'last_tracking_id')
+    if hasattr(detect_objects, 'prev_results'):
+        delattr(detect_objects, 'prev_results')
 
     return data
 

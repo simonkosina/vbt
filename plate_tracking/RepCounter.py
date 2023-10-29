@@ -1,7 +1,10 @@
+import numpy as np
+
 from Phase import Phase
 
 
-# TODO: Fine tune the treshold value.
+# TODO: Increase the treshold to 0.05 and go back through the data to find the last highest y pos
+#       position before the rep started and lowest y during the repetition.
 VELOCITY_TRESHOLD = 0.03
 
 
@@ -25,6 +28,10 @@ class RepCounter(object):
         self.acc_dist_y = 0
         self.y_prev = None
         self.x_prev = None
+        self.y_max_value = -np.inf
+        self.y_min_value = np.inf
+        self.y_max_time = None
+        self.y_min_time = None
 
     def _filter_phases(self, phase_type):
         """
@@ -61,6 +68,7 @@ class RepCounter(object):
         self._filter_phases(Phase.ECCENTRIC)
 
     def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
+
         if dy < -VELOCITY_TRESHOLD and self.current_phase == Phase.HOLD:
             self.time_start = time
             self.y_start = y

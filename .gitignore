@@ -3,7 +3,7 @@ tmp/*
 *.mp4
 .venv/
 .vscode
-*.pkl
+# *.pkl
 *.zip
 plate_tracking/videos/*
 
