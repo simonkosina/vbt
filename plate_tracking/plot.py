@@ -125,7 +125,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
         xlabel=None,
         title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
         xlim=[start, end],
-        ylim=[vel_ylim[0] - 0.2, vel_ylim[1] + 0.2],
+        ylim=[vel_ylim[0], vel_ylim[1] + 0.2],
     )
     vel_ax.legend(ncol=1, loc='upper left')
 

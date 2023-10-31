@@ -4,7 +4,9 @@ from Phase import Phase
 
 
 # TODO: Increase the treshold to 0.05 and go back through the data to find the last highest y pos
-#       position before the rep started and lowest y during the repetition.
+#       position before the rep started. Should work to filter the end of concetric phase.
+#       To improve the accuracy of finding the concetric starting point (we could remember the
+#       last time the velocity crossed zero and use it if the velocity crosses some treshold.
 VELOCITY_TRESHOLD = 0.03
 
 
