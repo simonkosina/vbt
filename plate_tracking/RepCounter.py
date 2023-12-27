@@ -3,17 +3,17 @@ import numpy as np
 from Phase import Phase
 
 
-# TODO: Increase the treshold to 0.05 and go back through the data to find the last highest y pos
-#       position before the rep started. Should work to filter the end of concetric phase.
-#       To improve the accuracy of finding the concetric starting point (we could remember the
-#       last time the velocity crossed zero and use it if the velocity crosses some treshold.
-VELOCITY_TRESHOLD = 0.03
+# TODO: Increase the toehold to 0.05 and go back through the data to find the last highest y pos
+#       position before the rep started. Should work to filter the end of concentric phase.
+#       To improve the accuracy of finding the concentric starting point (we could remember the
+#       last time the velocity crossed zero and use it if the velocity crosses some threshold.
+VELOCITY_THRESHOLD = 0.03
 
 
 class RepCounter(object):
     def __init__(self, plate_diameter):
         """
-        Processes meassurements resulting in a list
+        Processes measurements resulting in a list
         of Phase objects holding the information about
         each concentric and eccentric phase performed.
 
@@ -72,8 +72,7 @@ class RepCounter(object):
         self._filter_phases(Phase.ECCENTRIC)
 
     def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
-
-        if dy < -VELOCITY_TRESHOLD and self.current_phase == Phase.HOLD:
+        if dy < -VELOCITY_THRESHOLD and self.current_phase == Phase.HOLD:
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.CONCENTRIC
@@ -103,7 +102,7 @@ class RepCounter(object):
 
             self.current_phase = Phase.HOLD
 
-        if dy > VELOCITY_TRESHOLD and self.current_phase == Phase.HOLD:
+        if dy > VELOCITY_THRESHOLD and self.current_phase == Phase.HOLD:
             self.time_start = time
             self.y_start = y
             self.current_phase = Phase.ECCENTRIC
@@ -153,7 +152,7 @@ class RepCounter(object):
 def find_concentrics_in_df(df, plate_diameter):
     rep_counter = RepCounter(plate_diameter)
 
-    for _, (time, _, _, x, y, dx, dy, norm_plate_height, norm_plate_width) in df.iterrows():
+    for _, (time, x, y, dx, dy, norm_plate_height, norm_plate_width) in df.iterrows():
         rep_counter.process_measurements(
             time, x, y, dx, dy, norm_plate_height, norm_plate_width)
 

@@ -154,12 +154,30 @@ def run_odt(frame, interpreter, threshold=0.5):
 
     return results
 
+def results_to_sorttracker_inputs(orig_results):
+    """
+    Transform the results into a format
+    accepted by the SortTracker.
+    """
 
-def draw_bounding_box(image, tracking_id, obj, color):
+    results = []
+
+    # Tranform each result into a numpy array in form of [x1,y1,x2,y2,score,class]
+    # where x1,y1 is the top left and x2,y2 is the bottom right.
+    for res in orig_results.values():
+        ymin, xmin, ymax, xmax = res['bounding_box']
+        score = res['score']
+
+        results.append(np.array([xmin, ymin, xmax, ymax, score, 0]))
+
+    return np.empty((0,5)) if len(results) == 0 else np.array(results)
+    
+
+def draw_bounding_box(image, tracking_id, bounding_box, score, color):
     """Draw a bounding box based on the passed in results object."""
     # Convert the object bounding box from relative coordinates to absolute
     # coordinates based on the original image resolution
-    ymin, xmin, ymax, xmax = obj['bounding_box']
+    ymin, xmin, ymax, xmax = bounding_box
     xmin = int(xmin * image.shape[1])
     xmax = int(xmax * image.shape[1])
     ymin = int(ymin * image.shape[0])
@@ -171,7 +189,7 @@ def draw_bounding_box(image, tracking_id, obj, color):
     # Make adjustments to make the label visible for all objects
     y = ymin - 15 if ymin - 15 > 15 else ymin + 15
     label = "{:.0f}%, tracking_id: {}".format(
-        obj['score'] * 100, tracking_id)
+        score * 100, tracking_id)
     cv2.putText(image, label, (xmin, y),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
 

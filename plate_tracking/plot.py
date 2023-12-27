@@ -56,21 +56,15 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     df = df.query(f'id == {tracking_id}').drop(columns=['id'])
 
     df_pos = df.drop(columns=['dx', 'dy', 'norm_plate_height', 'norm_plate_width'])
-    df_vel = df.drop(columns=['x_raw', 'x_filtered', 'y_raw', 'y_filtered', 'norm_plate_height', 'norm_plate_width']).rename(
+    df_vel = df.drop(columns=['x', 'y', 'norm_plate_height', 'norm_plate_width']).rename(
         columns={'dx': 'x', 'dy': 'y'})
 
     # Reshape the dataframe into a long format
     df_pos = pd.melt(df_pos, id_vars=['time'],
                      var_name='variable', value_name='value')
-    df_pos['filtered'] = df_pos['variable'].str.contains('_filtered')
     df_pos['Position'] = df_pos['variable'].str.extract(r'([xy])')
     df_pos = df_pos.drop(columns=['variable'])
-    df_pos = df_pos[['time', 'filtered', 'Position', 'value']]
-
-    filtered = df_pos.query('filtered == True').drop(columns=['filtered'])
-    filtered['Position'] = filtered['Position'].map(lambda x: f'{x} filtered')
-    raw = df_pos.query('filtered == False').drop(columns=['filtered'])
-    raw['Position'] = raw['Position'].map(lambda x: f'{x} raw')
+    df_pos = df_pos[['time', 'Position', 'value']]
 
     df_vel = pd.melt(df_vel, id_vars=['time'],
                      var_name='Velocity', value_name='value')
@@ -81,19 +75,10 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     fig.suptitle(title)
 
     sns.lineplot(
-        filtered,
+        df_pos,
         x='time',
         y='value',
         hue='Position',
-        ax=pos_ax,
-        palette='rocket'
-    )
-    sns.lineplot(
-        raw,
-        x='time',
-        y='value',
-        hue='Position',
-        alpha=0.4,
         ax=pos_ax,
         palette='rocket'
     )
@@ -119,13 +104,13 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     )
     pos_ax.legend(ncol=4, loc='lower left')
 
-    vel_ylim = vel_ax.get_ylim()
+    # vel_ylim = vel_ax.get_ylim()
     vel_ax.set(
         ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
         xlabel=None,
         title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
         xlim=[start, end],
-        ylim=[vel_ylim[0], vel_ylim[1] + 0.2],
+        # ylim=[vel_ylim[0], vel_ylim[1] + 0.2],
     )
     vel_ax.legend(ncol=1, loc='upper left')
 

@@ -7,9 +7,10 @@ import tensorflow as tf
 import pandas as pd
 import os
 
+from sort.tracker import SortTracker
 from MovingAverage import MovingAverage
 from KalmanFilter import KalmanFilter
-from odt import run_odt, detect_objects, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_plate_height, calc_plate_width
+from odt import run_odt, detect_objects, draw_bar_path, draw_bounding_box, calc_bounding_box_center, calc_plate_height, calc_plate_width, results_to_sorttracker_inputs
 
 
 tf.config.set_visible_devices([], 'GPU')
@@ -48,7 +49,7 @@ def main(src, model, detection_treshold, display_image_height, df_export, df_dir
             df2 = df.copy()
 
             # Calculate the Euclidean distances for each row
-            df2['distance'] = np.where(df2['id'] == df2['id'].shift(), ((df2['x_filtered'] - df2['x_filtered'].shift())**2 + (df2['y_filtered'] - df2['y_filtered'].shift())**2)**0.5, np.nan)
+            df2['distance'] = np.where(df2['id'] == df2['id'].shift(), ((df2['x'] - df2['x'].shift())**2 + (df2['y'] - df2['y'].shift())**2)**0.5, np.nan)
 
             # Calculate the cumulative distance for each 'id'
             df2['cumulative_distance'] = df2.groupby('id')['distance'].cumsum()
@@ -77,24 +78,21 @@ def track(src, interpreter, detection_treshold, display_image_height):
     w2h_ratio = float(frame_width)/float(frame_height)
     display_image_width = int(display_image_height*w2h_ratio)
 
-    # Initialize Kalman Filters for each tracking_id (in the app, one KF will be enough)
-    kf_args = {'dt': 1/fps, 'std_acc': 1, 'xm_std': 0.01, 'ym_std': 0.01}
-    kfs = {}
-
     # Initialize the moving average filters for each tracking_id
     plate_width_moving_avgs = {}
     plate_height_moving_avgs = {}
 
     # Initialize tracking variables
     frame_count = 0
-    data = {'id': [], 'time': [], 'x_raw': [], 'y_raw': [],
-            'x_filtered': [], 'y_filtered': [], 'dx': [], 'dy': [],
+    data = {'id': [], 'time': [], 'x': [], 'y': [], 'dx': [], 'dy': [],
             'norm_plate_height': [], 'norm_plate_width': []}
 
     # Store bar paths, key is object's tracking id, values are lists tuples [x, y]
     # representing the original image coordinates.
-    raw_bar_paths = {}
-    filtered_bar_paths = {}
+    bar_paths = {}
+
+    # TODO: Make sure the parameters are equivalent
+    tracker = SortTracker(max_age=30)
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -118,69 +116,61 @@ def track(src, interpreter, detection_treshold, display_image_height):
             img.flags.writeable = False
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-            # TODO: Might want to keep the results
-            for kf in kfs.values():
-                kf.predict()
+            tracker_out = tracker.update(results_to_sorttracker_inputs(results), [])
 
-            for tracking_id, result in results.items():
+            for res in tracker_out:
+                xmin, ymin, xmax, ymax, tracking_id, _, score = res
+                bounding_box = [ymin, xmin, ymax, xmax]
+                tracking_id = int(tracking_id)
+
+                for trk in tracker.trackers:
+                    if trk.id == tracking_id - 1:
+                        kf = trk.kf
+                        break
+
+                dx, dy = kf.x.flatten()[4:6]
+
                 draw_bounding_box(
                     image=img,
                     tracking_id=tracking_id,
-                    obj=result,
+                    bounding_box=bounding_box,
+                    score=score,
                     color=COLORS[0]
                 )
 
                 # Center in normalized image coordinates
-                x_raw, y_raw = calc_bounding_box_center(
-                    result['bounding_box'])
+                x_center, y_center = calc_bounding_box_center(bounding_box)
 
-                # Initialize Kalman filter and moving avg filters if a new object detected
-                if tracking_id not in kfs:
-                    kfs[tracking_id] = KalmanFilter(
-                        x_raw, y_raw, **kf_args)
+                if tracking_id not in plate_width_moving_avgs:
                     plate_height_moving_avgs[tracking_id] = MovingAverage(window_size=fps*10)
                     plate_width_moving_avgs[tracking_id] = MovingAverage(window_size=fps*10)
 
                 norm_plate_width = plate_width_moving_avgs[tracking_id].process(
-                    calc_plate_width(result['bounding_box'])
+                    calc_plate_width(bounding_box)
                 )
                 norm_plate_height = plate_height_moving_avgs[tracking_id].process(
-                    calc_plate_height(result['bounding_box'])
+                    calc_plate_height(bounding_box)
                 )
 
-                # Estimated positions and velocities
-                x, y, dx, dy = kfs[tracking_id].update(
-                    [[x_raw], [y_raw]]).squeeze()
-
                 # Bounding box center in image coordinates
-                raw_center = np.array(
-                    [x_raw*img.shape[1], y_raw*img.shape[0]], dtype=np.int32)
-                filtered_center = np.array(
-                    [x*img.shape[1], y*img.shape[0]], dtype=np.int32)
+                center_im = np.array(
+                    [x_center*img.shape[1], y_center*img.shape[0]], dtype=np.int32)
 
                 # Store and draw the bar paths
-                if tracking_id in raw_bar_paths:
-                    raw_bar_paths[tracking_id] = np.concatenate(
-                        (raw_bar_paths[tracking_id], [raw_center]), dtype=np.int32)
-                    filtered_bar_paths[tracking_id] = np.concatenate(
-                        (filtered_bar_paths[tracking_id], [filtered_center]), dtype=np.int32)
+                if tracking_id in bar_paths:
+                    bar_paths[tracking_id] = np.concatenate(
+                        (bar_paths[tracking_id], [center_im]), dtype=np.int32)
                 else:
-                    raw_bar_paths[tracking_id] = np.array(
-                        [raw_center], np.int32)
-                    filtered_bar_paths[tracking_id] = np.array(
-                        [filtered_center], np.int32)
+                    bar_paths[tracking_id] = np.array(
+                        [center_im], np.int32)
 
-                draw_bar_path(img, raw_bar_paths[tracking_id], color=COLORS[0])
-                draw_bar_path(
-                    img, filtered_bar_paths[tracking_id], color=COLORS[1])
+                draw_bar_path(img, bar_paths[tracking_id], color=COLORS[1])
 
                 # Append data to the dataframe
                 data['id'].append(tracking_id)
                 data['time'].append(time)
-                data['x_raw'].append(x_raw)
-                data['y_raw'].append(y_raw)
-                data['x_filtered'].append(x)
-                data['y_filtered'].append(y)
+                data['x'].append(x_center)
+                data['y'].append(y_center)
                 data['dx'].append(dx)
                 data['dy'].append(dy)
                 data['norm_plate_height'].append(norm_plate_height)
