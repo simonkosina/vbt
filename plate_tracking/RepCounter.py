@@ -7,7 +7,7 @@ from Phase import Phase
 #       position before the rep started. Should work to filter the end of concentric phase.
 #       To improve the accuracy of finding the concentric starting point (we could remember the
 #       last time the velocity crossed zero and use it if the velocity crosses some threshold.
-VELOCITY_THRESHOLD = 0.03
+VELOCITY_COUNT_THRESHOLDS = 3
 
 
 class RepCounter(object):
@@ -37,7 +37,10 @@ class RepCounter(object):
         self.y_max_time = None
         self.y_min_time = None
 
-    def _filter_phases(self, phase_type):
+        self.negative_vel_cnt = 0
+        self.positive_vel_cnt = 0
+
+    def _filter_phases(self):
         """
         Check a list of Phase objects and based on the
         range of motion in Y axis filter out the exercise
@@ -50,86 +53,39 @@ class RepCounter(object):
         is_to_remove = set()
 
         for i, phase in enumerate(self.phases):
-            if phase.type == phase_type and phase.y_diff < diff_treshold:
+            if phase.y_diff < diff_treshold:
                 is_to_remove.add(i)
 
         self.phases = del_list_by_indexes(self.phases, is_to_remove)
 
-    def _filter_concentrics(self):
-        """
-        Check previous concetric phases and based on the
-        range of motion in Y axis to filter out exercise
-        and rerack.
-        """
-        self._filter_phases(Phase.CONCENTRIC)
-
-    def _filter_eccentrics(self):
-        """
-        Check previous eccentric phases and based on the
-        range of motion in Y axis to filter out exercise
-        and rerack.
-        """
-        self._filter_phases(Phase.ECCENTRIC)
-
     def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
-        if dy < -VELOCITY_THRESHOLD and self.current_phase == Phase.HOLD:
-            self.time_start = time
-            self.y_start = y
-            self.current_phase = Phase.CONCENTRIC
-            self.acc_dist_x = 0
-            self.acc_dist_y = 0
+        if dy < 0 and self.current_phase == Phase.HOLD:
+            self.negative_vel_cnt += 1
+            self.positive_vel_cnt = 0
+
+            if self.negative_vel_cnt == 1:
+                self.time_start = time
+                self.y_start = y
+
+            if self.negative_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                self.start_phase(Phase.CONCENTRIC)
+
+        if dy > 0 and self.current_phase == Phase.HOLD:
+            self.positive_vel_cnt += 1
+            self.negative_vel_cnt = 0
+
+            if self.positive_vel_cnt == 1:
+                self.time_start = time
+                self.y_start = y
+
+            if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                self.start_phase(Phase.ECCENTRIC)
 
         if dy > 0 and self.current_phase == Phase.CONCENTRIC:
-            # Remember the maximal ROM in Y axis
-            y_diff = abs(self.y_start - y)
-            if self.max_y_diff is None or y_diff > self.max_y_diff:
-                self.max_y_diff = y_diff
-
-            if y_diff > self.max_y_diff / 2:
-                rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
-                    (self.acc_dist_y / norm_plate_height) * self.plate_diameter
-                phase = Phase(
-                    time_start=self.time_start,
-                    time_end=time,
-                    y_start=self.y_start,
-                    y_end=y,
-                    rom=rom,
-                    phase_type=self.current_phase
-                )
-
-                self.phases.append(phase)
-                self._filter_concentrics()
-
-            self.current_phase = Phase.HOLD
-
-        if dy > VELOCITY_THRESHOLD and self.current_phase == Phase.HOLD:
-            self.time_start = time
-            self.y_start = y
-            self.current_phase = Phase.ECCENTRIC
-            self.acc_dist_x = 0
-            self.acc_dist_y = 0
+            self.end_phase(y, time, norm_plate_width, norm_plate_height)
 
         if dy < 0 and self.current_phase == Phase.ECCENTRIC:
-            # Remember the maximal ROM in Y axis
-            y_diff = abs(self.y_start - y)
-            if self.max_y_diff is None or y_diff > self.max_y_diff:
-                self.max_y_diff = y_diff
-
-            if y_diff > self.max_y_diff / 2:
-                rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
-                    (self.acc_dist_y / norm_plate_height) * self.plate_diameter
-                phase = Phase(
-                    time_start=self.time_start,
-                    time_end=time,
-                    y_start=self.y_start,
-                    y_end=y,
-                    rom=rom,
-                    phase_type=self.current_phase
-                )
-                self.phases.append(phase)
-                self._filter_eccentrics()
-
-            self.current_phase = Phase.HOLD
+            self.end_phase(y, time, norm_plate_width, norm_plate_height)
 
         if self.x_prev is not None and self.y_prev is not None:
             self.acc_dist_x += abs(x - self.x_prev)
@@ -137,6 +93,35 @@ class RepCounter(object):
 
         self.x_prev = x
         self.y_prev = y
+
+    def start_phase(self, phase):
+        self.current_phase = phase
+        self.acc_dist_x = 0
+        self.acc_dist_y = 0
+        self.positive_vel_cnt = 0
+        self.negative_vel_cnt = 0
+
+    def end_phase(self, y, time, norm_plate_width, norm_plate_height):
+        # Remember the maximal ROM in Y axis
+        y_diff = abs(self.y_start - y)
+        if self.max_y_diff is None or y_diff > self.max_y_diff:
+            self.max_y_diff = y_diff
+
+        if y_diff > self.max_y_diff / 2:
+            rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
+                (self.acc_dist_y / norm_plate_height) * self.plate_diameter
+            phase = Phase(
+                time_start=self.time_start,
+                time_end=time,
+                y_start=self.y_start,
+                y_end=y,
+                rom=rom,
+                phase_type=self.current_phase
+            )
+            self.phases.append(phase)
+            self._filter_phases()
+
+        self.current_phase = Phase.HOLD
 
     def end_processing(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
         """

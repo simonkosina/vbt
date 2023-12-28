@@ -104,7 +104,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     )
     pos_ax.legend(ncol=4, loc='lower left')
 
-    # vel_ylim = vel_ax.get_ylim()
+    vel_ylim = vel_ax.get_ylim()
     vel_ax.set(
         ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
         xlabel=None,
@@ -136,7 +136,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
             )
             vel_ax.text(
                 x=(phase.time_start + phase.time_end) / 2 + 0.02,
-                y=vel_ylim[1],
+                y=vel_ylim[1]*0.8,
                 s=f'{acv:0.2f}',
                 horizontalalignment='center',
                 verticalalignment='center',
