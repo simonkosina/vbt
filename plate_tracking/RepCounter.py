@@ -30,12 +30,15 @@ class RepCounter(object):
         self.acc_dist_y = 0
         self.y_prev = None
         self.x_prev = None
-        
+
         # TODO: Finish the rep counting offset
         self.y_max_value = -np.inf
         self.y_min_value = np.inf
         self.y_max_time = None
         self.y_min_time = None
+
+        self.y_end = None
+        self.time_end = None
 
         self.negative_vel_cnt = 0
         self.positive_vel_cnt = 0
@@ -59,6 +62,23 @@ class RepCounter(object):
         self.phases = del_list_by_indexes(self.phases, is_to_remove)
 
     def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
+        if self.y_prev is not None:
+            dy = y - self.y_prev
+
+        if dy > 0 and self.current_phase == Phase.CONCENTRIC:
+            self.positive_vel_cnt += 1
+            self.negative_vel_cnt = 0
+
+            if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                self.end_phase(y, time, norm_plate_width, norm_plate_height)
+
+        if dy < 0 and self.current_phase == Phase.ECCENTRIC:
+            self.negative_vel_cnt += 1
+            self.positive_vel_cnt = 0
+
+            if self.negative_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                self.end_phase(y, time, norm_plate_width, norm_plate_height)
+
         if dy < 0 and self.current_phase == Phase.HOLD:
             self.negative_vel_cnt += 1
             self.positive_vel_cnt = 0
@@ -81,18 +101,23 @@ class RepCounter(object):
             if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
                 self.start_phase(Phase.ECCENTRIC)
 
-        if dy > 0 and self.current_phase == Phase.CONCENTRIC:
-            self.end_phase(y, time, norm_plate_width, norm_plate_height)
-
-        if dy < 0 and self.current_phase == Phase.ECCENTRIC:
-            self.end_phase(y, time, norm_plate_width, norm_plate_height)
-
-        if self.x_prev is not None and self.y_prev is not None:
+        if self.x_prev is not None and self.y_prev is not None and self.time_end != None and time <= self.time_end:
             self.acc_dist_x += abs(x - self.x_prev)
             self.acc_dist_y += abs(y - self.y_prev)
 
         self.x_prev = x
         self.y_prev = y
+
+    def find_phase_end(self, y, time, phase):
+        if phase == Phase.CONCENTRIC:
+            if self.y_end is None or self.y_end > y:
+                self.y_end = y
+                self.time_end = time
+
+        if phase == Phase.ECCENTRIC:
+            if self.y_end is None or self.y_end < y:
+                self.y_end = y
+                self.time_end = time
 
     def start_phase(self, phase):
         self.current_phase = phase
@@ -122,16 +147,15 @@ class RepCounter(object):
             self._filter_phases()
 
         self.current_phase = Phase.HOLD
+        self.positive_vel_cnt = 0
+        self.negative_vel_cnt = 0
 
     def end_processing(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
         """
         Check if concentric/eccentric phase wasn't still in progress when video ended.
         """
-        # TODO:
-        if self.current_phase == Phase.CONCENTRIC:
-            pass
-        elif self.current_phase == Phase.ECCENTRIC:
-            pass
+        if self.y_prev is not None and self.current_phase != Phase.HOLD:
+            self.end_phase(y, time, norm_plate_width, norm_plate_height)
 
 
 def find_concentrics_in_df(df, plate_diameter):
