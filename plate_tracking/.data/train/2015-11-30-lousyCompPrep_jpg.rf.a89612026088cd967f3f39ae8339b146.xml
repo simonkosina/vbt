@@ -1,0 +1,27 @@
+<annotation>
+	<folder></folder>
+	<filename>2015-11-30-lousyCompPrep_jpg.rf.a89612026088cd967f3f39ae8339b146.jpg</filename>
+	<path>2015-11-30-lousyCompPrep_jpg.rf.a89612026088cd967f3f39ae8339b146.jpg</path>
+	<source>
+		<database>roboflow.com</database>
+	</source>
+	<size>
+		<width>416</width>
+		<height>416</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>barbell</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<occluded>0</occluded>
+		<bndbox>
+			<xmin>117</xmin>
+			<xmax>257</xmax>
+			<ymin>81</ymin>
+			<ymax>237</ymax>
+		</bndbox>
+	</object>
+</annotation>

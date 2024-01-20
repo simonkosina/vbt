@@ -16,7 +16,7 @@ TRAIN_DIR = os.path.join(DATA_DIR, 'train')
 VALID_DIR = os.path.join(DATA_DIR, 'valid')
 TEST_DIR = os.path.join(DATA_DIR, 'test')
 BATCH_SIZE = 4
-ARCHITECTURE = 'efficientdet_lite2' 
+ARCHITECTURE = 'efficientdet_lite0' 
 TRAIN_WHOLE_MODEL = True
 
 if __name__ == "__main__":
@@ -25,19 +25,19 @@ if __name__ == "__main__":
     train = object_detector.DataLoader.from_pascal_voc(
         images_dir=TRAIN_DIR,
         annotations_dir=TRAIN_DIR,
-        label_map={1: "barbell"}
+        label_map={1: "bag"}
     )
 
     valid = object_detector.DataLoader.from_pascal_voc(
         images_dir=VALID_DIR,
         annotations_dir=VALID_DIR,
-        label_map={1: "barbell"}
+        label_map={1: "bag"}
     )
 
     test = object_detector.DataLoader.from_pascal_voc(
         images_dir=TEST_DIR,
         annotations_dir=TEST_DIR,
-        label_map={1: "barbell"}
+        label_map={1: "bag"}
     )
 
     model = object_detector.create(

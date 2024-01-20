@@ -101,7 +101,7 @@ class RepCounter(object):
             if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
                 self.start_phase(Phase.ECCENTRIC)
 
-        if self.x_prev is not None and self.y_prev is not None and self.time_end != None and time <= self.time_end:
+        if self.x_prev is not None and self.y_prev is not None:
             self.acc_dist_x += abs(x - self.x_prev)
             self.acc_dist_y += abs(y - self.y_prev)
 
@@ -133,8 +133,7 @@ class RepCounter(object):
             self.max_y_diff = y_diff
 
         if y_diff > self.max_y_diff / 2:
-            rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + \
-                (self.acc_dist_y / norm_plate_height) * self.plate_diameter
+            rom = (self.acc_dist_x / norm_plate_width) * self.plate_diameter + (self.acc_dist_y / norm_plate_height) * self.plate_diameter
             phase = Phase(
                 time_start=self.time_start,
                 time_end=time,
