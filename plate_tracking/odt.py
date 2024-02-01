@@ -191,11 +191,14 @@ def draw_bounding_box(image, tracking_id, bounding_box, score, color):
     label = "{:.0f}%, tracking_id: {}".format(
         score * 100, tracking_id)
     cv2.putText(image, label, (xmin, y),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+                cv2.FONT_HERSHEY_DUPLEX, 1, color, 2)
 
 
 def draw_bar_path(image, bar_path, color):
     """Draw a bar path based on the passed in list of coordinates."""
+    if len(bar_path) > 120:
+        bar_path = bar_path[-120:]
+
     cv2.polylines(image, [bar_path], isClosed=False, color=color, thickness=2)
     cv2.circle(image, center=bar_path[-1],
                radius=10, color=color, thickness=-1)

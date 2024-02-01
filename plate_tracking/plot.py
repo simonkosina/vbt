@@ -71,7 +71,8 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     fig, (pos_ax, vel_ax) = plt.subplots(2, sharex=True, figsize=(12, 8))
 
-    title = f'{video}, id: {tracking_id}, model: {model}'
+    # title = f'{video}, id: {tracking_id}, model: {model}'
+    title = 'Bar center position and speed over time in x and y image coordinates.'
     fig.suptitle(title)
 
     sns.lineplot(

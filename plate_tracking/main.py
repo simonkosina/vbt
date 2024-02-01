@@ -24,13 +24,18 @@ COLORS = [(115, 3, 252), (255, 255, 255)]
 @click.option('--display_image_height', default=1000, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
 @click.option('--df_export', is_flag=True, help='Export dataframe as a pickle file to the same directory as the video source.')
 @click.option('--df_dir', default=None, help='Directory for exporting the dataframes.')
-def main(src, model, detection_treshold, display_image_height, df_export, df_dir):
+@click.option('--video_export', is_flag=True, help='Export a video showing the tracked objects and bar path.')
+@click.option('--video_dir', default=None, help='Directory for exporting the video with tracked objects and bar path.')
+def main(src, model, detection_treshold, display_image_height, df_export, df_dir, video_export, video_dir):
     """
     Visualize the object detection model for barbell tracking on a video
     and create a dataframe containing the detected objects their raw
     and filtered positions and velocities at specific times in the video. 
     """
     if df_dir is not None:
+        os.makedirs(df_dir, exist_ok=True)
+
+    if video_dir is not None:
         os.makedirs(df_dir, exist_ok=True)
 
     for s in src:
@@ -41,7 +46,14 @@ def main(src, model, detection_treshold, display_image_height, df_export, df_dir
         interpreter = tf.lite.Interpreter(model_path=model, num_threads=16)
         interpreter.allocate_tensors()
 
-        data = track(s, interpreter, detection_treshold, display_image_height)
+        video_filename = f'{os.path.basename(s).split(".")[0]}.mp4'
+
+        if video_dir is None:
+            video_path = video_filename
+        else:
+            video_path = os.path.join(video_dir, video_filename)
+
+        data = track(s, interpreter, detection_treshold, display_image_height, video_path if video_export else None)
 
         if df_export:
             df = pd.DataFrame.from_dict(data)
@@ -56,17 +68,18 @@ def main(src, model, detection_treshold, display_image_height, df_export, df_dir
             max_distance_id = df2.loc[df2['cumulative_distance'].idxmax(), 'id']
 
             model_name = os.path.basename(model).split('.')[0]
-            filename = f'{os.path.basename(s).split(".")[0]}_id{max_distance_id}_{model_name}.pkl'
+            df_filename = f'{os.path.basename(s).split(".")[0]}_id{max_distance_id}_{model_name}.pkl'
 
             if df_dir is None:
-                df_path = filename
+                df_path = df_filename
             else:
-                df_path = os.path.join(df_dir, filename)
+                df_path = os.path.join(df_dir, df_filename)
 
-            df.to_pickle(df_path)
+            if df_export:
+                df.to_pickle(df_path)
 
 
-def track(src, interpreter, detection_treshold, display_image_height):
+def track(src, interpreter, detection_treshold, display_image_height, video_path):
     """
     Runs the model inference visualization and returns captured data.
     """
@@ -90,6 +103,10 @@ def track(src, interpreter, detection_treshold, display_image_height):
     # Store bar paths, key is object's tracking id, values are lists tuples [x, y]
     # representing the original image coordinates.
     bar_paths = {}
+        
+    # Initialize video writer
+    if video_path is not None:
+        video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
 
     # TODO: Make sure the parameters are equivalent
     tracker = SortTracker(max_age=30)
@@ -101,7 +118,8 @@ def track(src, interpreter, detection_treshold, display_image_height):
         if not ret:
             break
 
-        if frame_count % 2 == 0:
+        # if frame_count % 2 == 0:
+        if True:
             time = frame_count / fps
 
             img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -135,7 +153,7 @@ def track(src, interpreter, detection_treshold, display_image_height):
                     tracking_id=tracking_id,
                     bounding_box=bounding_box,
                     score=score,
-                    color=COLORS[0]
+                    color=COLORS[1]
                 )
 
                 # Center in normalized image coordinates
@@ -181,12 +199,16 @@ def track(src, interpreter, detection_treshold, display_image_height):
                 img, (display_image_width, display_image_height))
             cv2.imshow(os.path.basename(src), img_resized)
 
+            if video_path is not None:
+                video_writer.write(img)
+
             # Stream Control
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
 
     cap.release()
+    video_writer.release()
     cv2.destroyAllWindows()
 
     if hasattr(detect_objects, 'last_tracking_id'):
