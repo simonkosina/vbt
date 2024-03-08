@@ -1,4 +1,14 @@
+"""
+Definition of the Phase class.
+"""
+
+
 class Phase(object):
+    """
+    Represents a single concentric or an eccentric
+    phase of a recorded set.
+    """
+
     CONCENTRIC = 0
     ECCENTRIC = 1
     HOLD = 2
@@ -9,7 +19,7 @@ class Phase(object):
         self.y_start = y_start
         self.y_end = y_end
         self.type = phase_type
-        self.rom = rom # Range of Motion [m]
+        self.rom = rom  # Range of Motion [m]
 
     @property
     def y_diff(self):

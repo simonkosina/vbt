@@ -1,27 +1,31 @@
 """
-Simple script to partition files exported from LabelStudio
-to train. test and valid directories.
+Simple script to partition files exported from
+LabelStudio [https://github.com/HumanSignal/label-studio]
+to separate train, test and valid directories.
+
+Not needed for running the tracking algorithm or creating the plots.
 """
 
 import os
 import glob
 import numpy as np
 
-ANNOTATIONS_DIR = "data/tmp/project3/Annotations"
-IMAGES_DIR = "data/tmp/project3/images"
+ANNOTATIONS_DIR = "tmp/project3/Annotations"
+IMAGES_DIR = "tmp/project3/images"
 DEST_DIR = "data"
 
 TRAIN_PERCENTAGE = 0.85
 TEST_PERCENTAGE = 0.05
 VALID_PERCENTAGE = 0.1
 
+
 def copy_files(filenames, partition_dir):
     for filename in filenames:
         xml_src = os.path.join(ANNOTATIONS_DIR, filename) + ".xml"
         xml_dst = os.path.join(DEST_DIR, partition_dir, filename) + ".xml"
 
-        jpg_src = os.path.join(IMAGES_DIR, filename) + ".jpg" 
-        jpg_dst = os.path.join(DEST_DIR, partition_dir, filename) + ".jpg" 
+        jpg_src = os.path.join(IMAGES_DIR, filename) + ".jpg"
+        jpg_dst = os.path.join(DEST_DIR, partition_dir, filename) + ".jpg"
 
         os.system(f"cp {xml_src} {xml_dst}")
         os.system(f"cp {jpg_src} {jpg_dst}")
@@ -29,7 +33,7 @@ def copy_files(filenames, partition_dir):
 
 if __name__ == "__main__":
     files = glob.glob(pathname=f"{ANNOTATIONS_DIR}/*")
-    
+
     # Extract only filenames without the '.xml' extension
     files = list(map(lambda x: os.path.basename(x)[:-4], files))
     np.random.shuffle(files)
@@ -41,7 +45,7 @@ if __name__ == "__main__":
     train = files[0:num_train]
     test = files[num_train:num_train+num_test]
     valid = files[-num_valid:]
-    
+
     copy_files(train, "train")
     copy_files(test, "test")
     copy_files(valid, "valid")

@@ -1,3 +1,7 @@
+"""
+Plotting the dataframes created by the track.py script.
+"""
+
 import click
 import os
 import re
@@ -7,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 from math import ceil, floor
-from RepCounter import find_concentrics_in_df
+from VelocityTracker import VelocityTracker
 from Phase import Phase
 
 sns.set_theme(style='ticks')
@@ -26,17 +30,36 @@ phase_cmap = {
 }
 
 
+def analyze_df(df, plate_diameter):
+    """
+    Analyze the dataframe to find individual
+    concentric and eccentric phases.
+    """
+
+    rep_counter = VelocityTracker(plate_diameter)
+
+    for _, (time, x, y, dx, dy, norm_plate_height, norm_plate_width) in df.iterrows():
+        rep_counter.process_measurements(
+            time, x, y, dx, dy, norm_plate_height, norm_plate_width)
+
+    rep_counter.end_processing()
+
+    return rep_counter.phases
+
+
 @click.command()
 @click.argument('src', type=str, nargs=-1)
 @click.option('--show_fig', is_flag=True, help='Show the figure.')
-@click.option('--save_fig', is_flag=True, help='Save the plots for each input file as a PDF to the same directory as the input pickle file.')
 @click.option('--plate_diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float)
-@click.option('--fig_dir', default=None, help='Directory for saving the figures.')
-def main(src, show_fig, save_fig, plate_diameter, fig_dir):
+@click.option('--fig_dir', default=None, help='Directory for saving the figures. If not set the figures won\'t be saved.')
+def main(src, show_fig, plate_diameter, fig_dir):
     """
     Visualize the bar position and speeds over time based
     on the passed in dataframe in the pickle format.
     """
+
+    save_fig = fig_dir is not None
+
     if fig_dir is not None:
         os.makedirs(fig_dir, exist_ok=True)
 
@@ -44,10 +67,14 @@ def main(src, show_fig, save_fig, plate_diameter, fig_dir):
         if not os.path.isfile(s):
             raise FileNotFoundError()
 
-        visualize(s, show_fig, save_fig, plate_diameter, fig_dir)
+        plot(s, show_fig, save_fig, plate_diameter, fig_dir)
 
 
-def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
+def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
+    """
+    Takes in a single dataframe path (src) and plots the results.
+    """
+
     filename = os.path.basename(src)
     result = filename_regexp.match(filename)
     video, tracking_id, model = result.groups()
@@ -55,7 +82,8 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     df = pd.read_pickle(src)
     df = df.query(f'id == {tracking_id}').drop(columns=['id'])
 
-    df_pos = df.drop(columns=['dx', 'dy', 'norm_plate_height', 'norm_plate_width'])
+    df_pos = df.drop(
+        columns=['dx', 'dy', 'norm_plate_height', 'norm_plate_width'])
     df_vel = df.drop(columns=['x', 'y', 'norm_plate_height', 'norm_plate_width']).rename(
         columns={'dx': 'x', 'dy': 'y'})
 
@@ -116,7 +144,7 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
     vel_ax.legend(ncol=1, loc='upper left')
 
     # Display repetition phases as background colors
-    phases = find_concentrics_in_df(df, plate_diameter)
+    phases = analyze_df(df, plate_diameter)
 
     for phase in phases:
         pos_ax.axvspan(xmin=phase.time_start, xmax=phase.time_end,
@@ -129,7 +157,8 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
             acv = phase.rom / phase.duration
             pos_ax.text(
                 x=(phase.time_start + phase.time_end) / 2 + 0.02,
-                y=pos_ylim[1] if pos_ax.get_ylim()[1] < 1 else pos_ax.get_ylim()[0] + 0.02,
+                y=pos_ylim[1] if pos_ax.get_ylim()[1] < 1 else pos_ax.get_ylim()[
+                    0] + 0.02,
                 s=f'{phase.rom:0.2f}',
                 horizontalalignment='center',
                 verticalalignment='bottom',
@@ -158,11 +187,11 @@ def visualize(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     x_max = ceil(vel_ax.get_xlim()[1])
     x_min = floor(vel_ax.get_xlim()[0])
-    x_min = x_min - x_min % 5 # round down to nearest multiple of 5
+    x_min = x_min - x_min % 5  # round down to nearest multiple of 5
     major_ticks = range(x_min, x_max, 5)
     minor_ticks = range(x_min, x_max, 1)
 
-    plt.xticks(major_ticks, major_ticks, minor=False) 
+    plt.xticks(major_ticks, major_ticks, minor=False)
     plt.xticks(minor_ticks, [], minor=True)
 
     plt.tight_layout()
