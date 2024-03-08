@@ -13,6 +13,7 @@ from tflite_runtime.interpreter import Interpreter
 
 tf.config.set_visible_devices([], 'GPU')
 
+MAX_AGE = 30
 COLORS = [(115, 3, 252), (255, 255, 255)]
 
 @click.command()
@@ -103,7 +104,7 @@ def track(src, interpreter, detection_treshold, display_image_height, video_path
     if video_path is not None:
         video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
 
-    tracker = SortTracker(max_age=30)
+    tracker = SortTracker(max_age=MAX_AGE)
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -112,83 +113,81 @@ def track(src, interpreter, detection_treshold, display_image_height, video_path
         if not ret:
             break
 
-        # Take every second frame to speed up inference
-        if frame_count % 2 == 0:
-            time = frame_count / fps
+        time = frame_count / fps
 
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img.flags.writeable = True
+        img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img.flags.writeable = True
 
-            results = run_odt(
-                frame=img,
-                interpreter=interpreter,
-                threshold=detection_treshold
+        results = run_odt(
+            frame=img,
+            interpreter=interpreter,
+            threshold=detection_treshold
+        )
+
+        img.flags.writeable = False
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        tracker_out = tracker.update(results_to_sorttracker_inputs(results), [])
+
+        for res in tracker_out:
+            xmin, ymin, xmax, ymax, tracking_id, _, score = res
+            bounding_box = [ymin, xmin, ymax, xmax]
+            tracking_id = int(tracking_id)
+
+            for trk in tracker.trackers:
+                if trk.id == tracking_id - 1:
+                    kf = trk.kf
+                    break
+
+            dx, dy = kf.x.flatten()[4:6]
+
+            draw_bounding_box(
+                image=img,
+                tracking_id=tracking_id,
+                bounding_box=bounding_box,
+                score=score,
+                color=COLORS[1]
             )
 
-            img.flags.writeable = False
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # Center in normalized image coordinates
+            x_center, y_center = calc_bounding_box_center(bounding_box)
 
-            tracker_out = tracker.update(results_to_sorttracker_inputs(results), [])
+            # Bounding box center in image coordinates
+            center_im = np.array(
+                [x_center*img.shape[1], y_center*img.shape[0]], dtype=np.int32)
 
-            for res in tracker_out:
-                xmin, ymin, xmax, ymax, tracking_id, _, score = res
-                bounding_box = [ymin, xmin, ymax, xmax]
-                tracking_id = int(tracking_id)
+            # Store and draw the bar paths
+            if tracking_id in bar_paths:
+                bar_paths[tracking_id] = np.concatenate(
+                    (bar_paths[tracking_id], [center_im]), dtype=np.int32)
+            else:
+                bar_paths[tracking_id] = np.array(
+                    [center_im], np.int32)
 
-                for trk in tracker.trackers:
-                    if trk.id == tracking_id - 1:
-                        kf = trk.kf
-                        break
+            draw_bar_path(img, bar_paths[tracking_id], color=COLORS[1])
 
-                dx, dy = kf.x.flatten()[4:6]
+            # Append data to the dataframe
+            data['id'].append(tracking_id)
+            data['time'].append(time)
+            data['x'].append(x_center)
+            data['y'].append(y_center)
+            data['dx'].append(dx)
+            data['dy'].append(dy)
+            data['norm_plate_height'].append(calc_plate_height(bounding_box))
+            data['norm_plate_width'].append(calc_plate_width(bounding_box))
 
-                draw_bounding_box(
-                    image=img,
-                    tracking_id=tracking_id,
-                    bounding_box=bounding_box,
-                    score=score,
-                    color=COLORS[1]
-                )
+        # Show results
+        img_resized = cv2.resize(
+            img, (display_image_width, display_image_height))
+        cv2.imshow(os.path.basename(src), img_resized)
 
-                # Center in normalized image coordinates
-                x_center, y_center = calc_bounding_box_center(bounding_box)
+        if video_path is not None:
+            video_writer.write(img)
 
-                # Bounding box center in image coordinates
-                center_im = np.array(
-                    [x_center*img.shape[1], y_center*img.shape[0]], dtype=np.int32)
-
-                # Store and draw the bar paths
-                if tracking_id in bar_paths:
-                    bar_paths[tracking_id] = np.concatenate(
-                        (bar_paths[tracking_id], [center_im]), dtype=np.int32)
-                else:
-                    bar_paths[tracking_id] = np.array(
-                        [center_im], np.int32)
-
-                draw_bar_path(img, bar_paths[tracking_id], color=COLORS[1])
-
-                # Append data to the dataframe
-                data['id'].append(tracking_id)
-                data['time'].append(time)
-                data['x'].append(x_center)
-                data['y'].append(y_center)
-                data['dx'].append(dx)
-                data['dy'].append(dy)
-                data['norm_plate_height'].append(calc_plate_height(bounding_box))
-                data['norm_plate_width'].append(calc_plate_width(bounding_box))
-
-            # Show results
-            img_resized = cv2.resize(
-                img, (display_image_width, display_image_height))
-            cv2.imshow(os.path.basename(src), img_resized)
-
-            if video_path is not None:
-                video_writer.write(img)
-
-            # Stream Control
-            key = cv2.waitKey(1)
-            if key & 0xFF == ord('q'):
-                break
+        # Stream Control
+        key = cv2.waitKey(1)
+        if key & 0xFF == ord('q'):
+            break
 
     cap.release()
     cv2.destroyAllWindows()
