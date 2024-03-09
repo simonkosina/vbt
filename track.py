@@ -10,6 +10,7 @@ import click
 import numpy as np
 import cv2
 import pandas as pd
+import tensorflow as tf
 import os
 
 from sort.tracker import SortTracker
@@ -19,6 +20,8 @@ from tflite_runtime.interpreter import Interpreter
 
 MAX_AGE = 30
 COLORS = [(115, 3, 252), (255, 255, 255)]
+
+tf.config.set_visible_devices([], 'GPU')
 
 
 def draw_bounding_box(image, tracking_id, bounding_box, score, color):

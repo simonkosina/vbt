@@ -11,8 +11,8 @@ import tensorflow as tf
 from tflite_model_maker import object_detector
 from tflite_model_maker import model_spec
 
-# Disable training on GPU. Comment if GPU training is desired.
-tf.config.set_visible_devices([], 'GPU')
+# Disable training on GPU.
+# tf.config.set_visible_devices([], 'GPU')
 
 EXPORT_DIR = 'models'
 DATA_DIR = 'data'
