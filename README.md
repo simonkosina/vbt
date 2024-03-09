@@ -1,5 +1,5 @@
 # Velocity Based Training using TFLite object detection
-This is a proof of concept project implementing barbell velocity tracking using TFLite models detecting and tracking the weight plates in a video. [TFLite object detection models](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection) can than be run on mobile devices, forming the bases of a mobile application for real-time velocity tracking during training.
+This is a proof of concept project implementing barbell velocity tracking using TFLite models to detect and track the weight plates in a video. [TFLite object detection models](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection) can than be run on mobile devices, forming the bases of a mobile application for real-time velocity tracking during training.
 
 Displayed below is a visualization of the bar path tracking (`track.py` script) and also the metric analysis displaying the concentric range of motion and average concentric velocity (`plot.py` script).
 
@@ -51,7 +51,6 @@ python train.py
 ```
 
 To further customize the architecture or training parameters please see the [official documentation](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection). The dataset provided in the `data` folder is a mixture of my personal images and a dataset found on Roboflow [1].
-
 
 ---
 
