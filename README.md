@@ -36,12 +36,7 @@ python plot.py --show_fig dfs/df_to_plot.pkl
 It's important to note that from my experience the performance of quantized models seems to be a bit slower on CPU when using the TFLite interpreter than what I've seen testing them on mobile devices and also when compared to the [official benchmarks](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection#quickstart). It's also possible that there is some optimization that I've missed in which case feel free to correct me.
 
 ## Sample videos
-I've gathered a couple of videos for testing that can be downloaded from [GDrive]() together with the videos displaying the tracked objects. The generated dataframes and figures for these videos can be found in the `dfs` and `figs` directiories respectively.
-
-- TODO: upload raw sample videos to VBT dir
-- TODO: upload tracked videos to VBT dir
-- TODO: update dfs
-- TODO: update figs
+I've gathered a couple of videos for testing that can be downloaded from [GDrive](https://drive.google.com/drive/folders/1h_9hC_3yFIdNILJbP_s1Os9IwnwqqHF1?usp=sharing) together with the videos displaying the tracked objects. The generated dataframes and figures for these videos can be found in the `dfs` and `figs` directiories respectively.
 
 ## Training
 TFlite models in the `model` directory were created just by running `train.py` script.
