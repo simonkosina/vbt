@@ -1,5 +1,3 @@
-- video dataset for download
-
 # Velocity Based Training using TFLite object detection
 This is a proof of concept project implementing barbell velocity tracking using TFLite models detecting and tracking the weight plates in a video. [TFLite object detection models](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection) can than be run on mobile devices, forming the bases of a mobile application for real-time velocity tracking during training.
 
