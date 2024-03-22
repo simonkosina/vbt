@@ -300,7 +300,6 @@ if __name__ == "__main__":
 
     df_roc = pd.concat(rocs, ignore_index=True)
 # %%
-
     ax = sns.lineplot(data=df_roc, x='FP Rate',
                  y='TP Rate', hue='Model',
                  errorbar=None)
@@ -327,57 +326,58 @@ if __name__ == "__main__":
     plt.show()
 
 # %%
-    # TODO: Display threshold options from the app (0.1, 0.2, 0.3, 0.4, 0.5)
-    # on the ROC curve for efficientdet_lite0_whole model.
+    for m in pd.unique(df["Model"]):
+        for handle, label in zip(handles, labels):
+            if label.startswith(m):
+                model_color = handle.get_color()
 
-    dfm = df_roc.query("Model == @MODEL")
+        dfm = df_roc.query("Model == @m")
 
-    ax = sns.lineplot(data=dfm, x='FP Rate',
-                 y='TP Rate', hue='Model',
-                 errorbar=None)
+        ax = sns.lineplot(data=dfm, x='FP Rate',
+                    y='TP Rate', hue='Model',
+                    errorbar=None, palette=[model_color])
 
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
-    handles, labels = ax.get_legend_handles_labels()
-    for i, model in enumerate(labels):
-        labels[i] += f', AUC={roc_aucs[model]:.4f}'
+        _handles, _labels = ax.get_legend_handles_labels()
+        for i, model in enumerate(_labels):
+            _labels[i] += f', AUC={roc_aucs[model]:.4f}'
 
-    ax.set_title(f'ROC curve with score thresholds, IoU threshold = {IOU_THRESHOLD}')
-    ax.legend(handles, labels, loc='lower right')
+        ax.set_title(f'ROC curve with score thresholds, IoU threshold = {IOU_THRESHOLD}')
+        ax.legend(_handles, _labels, loc='lower right')
 
-    ax.xaxis.set_minor_locator(MultipleLocator(0.05))
-    ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
 
-    ax.grid(which='major', color='gray', linestyle='-', linewidth=0.5, alpha=0.7)
-    ax.grid(which='minor', color='gray', linestyle=':', linewidth=0.5, alpha=0.5)
+        ax.grid(which='major', color='gray', linestyle='-', linewidth=0.5, alpha=0.7)
+        ax.grid(which='minor', color='gray', linestyle=':', linewidth=0.5, alpha=0.5)
 
-    thresholds = [0.1, 0.2, 0.3, 0.4, 0.5]
-    for i, v in enumerate(thresholds):
-        diffs = abs(dfm['Threshold'] - v)
-        closest_row = dfm.loc[diffs.idxmin()]
+        thresholds = [0.1, 0.2, 0.3, 0.4, 0.5]
+        for i, v in enumerate(thresholds):
+            diffs = abs(dfm['Threshold'] - v)
+            closest_row = dfm.loc[diffs.idxmin()]
 
-        fpr = closest_row["FP Rate"]
-        tpr = closest_row["TP Rate"]
-        threshold = closest_row["Threshold"]
+            fpr = closest_row["FP Rate"]
+            tpr = closest_row["TP Rate"]
+            threshold = closest_row["Threshold"]
 
-        text = f'{threshold:.4f}'
-        print(text)
-        ax.annotate(text,
-            xy=(fpr, tpr),
-            xycoords='data',
-            xytext=((len(thresholds) - i)*8, - (i + 1) * 15),
-            textcoords='offset points',
-            arrowprops=dict(
-                arrowstyle="->",
-                color='k',
-                connectionstyle="arc3,rad=-0.1",
-                relpos=(0, 1)
-            ),
-            fontsize=10
-        )
+            text = f'{threshold:.4f}'
+            ax.annotate(text,
+                xy=(fpr, tpr),
+                xycoords='data',
+                xytext=((len(thresholds) - i)*8, - (i + 1) * 15),
+                textcoords='offset points',
+                arrowprops=dict(
+                    arrowstyle="->",
+                    color='k',
+                    connectionstyle="arc3,rad=-0.1",
+                    relpos=(0, 1)
+                ),
+                fontsize=10
+            )
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
