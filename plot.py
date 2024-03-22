@@ -21,7 +21,7 @@ filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              (\d+)      # Match the object tracking id
                              _          # Skip the underscore
                              (\S*)      # Match the model name
-                             \.pkl      # Ignore the file extension
+                             \.pkl.gz   # Ignore the file extension
                              """, re.VERBOSE)
 
 phase_cmap = {

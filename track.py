@@ -114,7 +114,7 @@ def main(src, model, detection_treshold, display_image_height, df_dir, video_dir
             ), 'id']
 
             model_name = os.path.basename(model).split('.')[0]
-            df_filename = f'{os.path.basename(s).split(".")[0]}_id{max_distance_id}_{model_name}.pkl'
+            df_filename = f'{os.path.basename(s).split(".")[0]}_id{max_distance_id}_{model_name}.pkl.gz'
 
             if df_dir is None:
                 df_path = df_filename

@@ -30,7 +30,7 @@ python track.py --video_dir out/ --df_dir dfs/ video_to_analyze.mp4
 To analyze the bar path and plot the metrics use the `plot.py` script. Again, use `--help` for more information.
 
 ```
-python plot.py --show_fig dfs/df_to_plot.pkl
+python plot.py --show_fig dfs/df_to_plot.pkl.gz
 ```
 
 It's important to note that from my experience the performance of quantized models seems to be a bit slower on CPU when using the TFLite interpreter than what I've seen testing them on mobile devices and also when compared to the [official benchmarks](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection#quickstart). It's also possible that there is some optimization that I've missed in which case feel free to correct me.
