@@ -14,6 +14,7 @@ import scipy.optimize
 
 from odt import run_odt
 from tflite_runtime.interpreter import Interpreter
+from matplotlib.ticker import MultipleLocator
 
 ANNOTATIONS_DIR = 'data/test'
 IMG_DIR = 'data/test'
@@ -23,7 +24,8 @@ LABEL = 'barbell'
 THRESHOLDS = np.arange(0.05, 1.05, 0.05)
 IOU_THRESHOLD = 0.5
 THREADS = 4
-ARCHITECTURE = 'efficientdet_lite0'
+
+MODEL = 'efficientdet_lite0_whole'
 
 
 def create_bbox(bbox_element):
@@ -191,7 +193,7 @@ if __name__ == "__main__":
 
 # %%
     scores = []
-    is_correct = []
+    labels = []
     models = []
 
     for file, gt_bboxes in annotations.items():
@@ -204,27 +206,22 @@ if __name__ == "__main__":
 
             for i, det_idx in enumerate(det_idxs):
                 scores.append(model_detections[file][det_idx]['score'])
-                is_correct.append(ious[i] > IOU_THRESHOLD)
+                labels.append(ious[i] > IOU_THRESHOLD)
                 models.append(model)
 
-            # for det_bbox in detections[model][file]:
-            #     iou = [calculate_iou(det_bbox['bounding_box'], gt_bbox)
-            #         for gt_bbox in gt_bboxes]
-
-            #     scores.append(det_bbox['score'])
-            #     is_correct.append(max(iou) > IOU_THRESHOLD)
-            #     models.append(model)
-
     scores = np.array(scores)
-    tps = np.array(is_correct).astype(int)
-    fps = np.logical_not(np.array(is_correct)).astype(int)
+    tps = np.array(labels).astype(int)
+    fps = np.logical_not(labels).astype(int)
 
     gt_total = sum([len(gt_bboxes) for gt_bboxes in annotations.values()])
 
 # %%
+    from sklearn.metrics import average_precision_score
+
     df = pd.DataFrame({
         'Score': scores,
         'Model': models,
+        'Label': labels,
         'TP': tps,
         'FP': fps,
     })
@@ -235,13 +232,23 @@ if __name__ == "__main__":
     df['Precision'] = df['acc_tp'] / (df['acc_tp'] + df['acc_fp'])
     df['Recall'] = df['acc_tp'] / gt_total
 
+    aps = {}
+
+    for m in pd.unique(df["Model"]):
+        dfm = df.query("Model == @m")
+        scores = dfm["Score"]
+        labels = dfm["Label"]
+
+        aps[m] = average_precision_score(labels, scores)
+        
+
 # %%
+    # TODO: Display AP in the legend
+    # TODO: Mention the IoU threshold
     sns.set_theme(style='ticks')
-    # sns.set_palette('rocket')
+    sns.set_palette('Set2')
 
-    fix, ax = plt.subplots(figsize=(8, 6))
-
-    sns.lineplot(data=df, ax=ax, x='Recall',
+    ax = sns.lineplot(data=df, x='Recall',
                  y='Precision', hue='Model',
                  errorbar=None)
     ax.set_xlim(0, 1)
@@ -249,5 +256,128 @@ if __name__ == "__main__":
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-#%%
-    
+    handles, labels = ax.get_legend_handles_labels()
+    for i, model in enumerate(labels):
+        labels[i] += f', AP={aps[model]:.4f}'
+
+    ax.set_title(f'Precision-Recall curve, IoU threshold = {IOU_THRESHOLD}')
+    ax.legend(handles, labels, loc='lower left')
+
+    ax.xaxis.set_minor_locator(MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+
+    ax.grid(which='major', color='gray', linestyle='-', linewidth=0.5, alpha=0.7)
+    ax.grid(which='minor', color='gray', linestyle=':', linewidth=0.5, alpha=0.5)
+
+    plt.tight_layout()
+    plt.show()
+
+    # TODO: Display AUC in the legend
+# %%
+    from sklearn.metrics import roc_curve, roc_auc_score
+
+    rocs = []
+    roc_aucs = {}
+
+    for m in pd.unique(df["Model"]):
+        # scores, labels = df.query("Model == @m")["Score", "Label"]
+        dfm = df.query("Model == @m")
+        scores = dfm["Score"]
+        labels = dfm["Label"]
+
+        fpr, tpr, thresholds = roc_curve(labels, scores)
+
+        df_model_roc = pd.DataFrame({
+            'FP Rate': fpr,
+            'TP Rate': tpr,
+            'Threshold': thresholds,
+            'Model': m
+        })
+
+        rocs.append(df_model_roc)
+
+        roc_aucs[m] = roc_auc_score(labels, scores)
+
+    df_roc = pd.concat(rocs, ignore_index=True)
+# %%
+
+    ax = sns.lineplot(data=df_roc, x='FP Rate',
+                 y='TP Rate', hue='Model',
+                 errorbar=None)
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    handles, labels = ax.get_legend_handles_labels()
+    for i, model in enumerate(labels):
+        labels[i] += f', AUC={roc_aucs[model]:.4f}'
+
+    ax.set_title(f'ROC curve, IoU threshold = {IOU_THRESHOLD}')
+    ax.legend(handles, labels, loc='lower right')
+
+    ax.xaxis.set_minor_locator(MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+
+    ax.grid(which='major', color='gray', linestyle='-', linewidth=0.5, alpha=0.7)
+    ax.grid(which='minor', color='gray', linestyle=':', linewidth=0.5, alpha=0.5)
+
+    plt.tight_layout()
+    plt.show()
+
+# %%
+    # TODO: Display threshold options from the app (0.1, 0.2, 0.3, 0.4, 0.5)
+    # on the ROC curve for efficientdet_lite0_whole model.
+
+    dfm = df_roc.query("Model == @MODEL")
+
+    ax = sns.lineplot(data=dfm, x='FP Rate',
+                 y='TP Rate', hue='Model',
+                 errorbar=None)
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    handles, labels = ax.get_legend_handles_labels()
+    for i, model in enumerate(labels):
+        labels[i] += f', AUC={roc_aucs[model]:.4f}'
+
+    ax.set_title(f'ROC curve with score thresholds, IoU threshold = {IOU_THRESHOLD}')
+    ax.legend(handles, labels, loc='lower right')
+
+    ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+
+    ax.grid(which='major', color='gray', linestyle='-', linewidth=0.5, alpha=0.7)
+    ax.grid(which='minor', color='gray', linestyle=':', linewidth=0.5, alpha=0.5)
+
+    thresholds = [0.1, 0.2, 0.3, 0.4, 0.5]
+    for i, v in enumerate(thresholds):
+        diffs = abs(dfm['Threshold'] - v)
+        closest_row = dfm.loc[diffs.idxmin()]
+
+        fpr = closest_row["FP Rate"]
+        tpr = closest_row["TP Rate"]
+        threshold = closest_row["Threshold"]
+
+        text = f'{threshold:.4f}'
+        print(text)
+        ax.annotate(text,
+            xy=(fpr, tpr),
+            xycoords='data',
+            xytext=((len(thresholds) - i)*8, - (i + 1) * 15),
+            textcoords='offset points',
+            arrowprops=dict(
+                arrowstyle="->",
+                color='k',
+                connectionstyle="arc3,rad=-0.1",
+                relpos=(0, 1)
+            ),
+            fontsize=10
+        )
+
+    plt.tight_layout()
+    plt.show()
