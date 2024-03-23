@@ -50,8 +50,8 @@ To further customize the architecture or training parameters please see the [off
 You can find the logs from training each model in the `models` directory. Below are the Precision-Recall and ROC curves for the trained models evaluated on the testing dataset with an IoU thresholds of 0.5 to classify detections as correct when calculated against the annotated bounding boxes.
 
 <p align="center">
-    <img src="docs/precision_recall.png" width="49%" />
-    <img src="docs/roc.png" width="49%" />
+    <img src="docs/precision_recall.png" width="75%" />
+    <img src="docs/roc.png" width="75%" />
 </p>
 
 ---
