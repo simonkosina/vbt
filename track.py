@@ -63,12 +63,12 @@ def draw_bar_path(image, bar_path, color):
 
 @click.command()
 @click.argument('src', type=str, nargs=-1)
-@click.option('--model', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection.', type=str)
-@click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float)
-@click.option('--display_image_height', default=720, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int)
-@click.option('--df_dir', default=None, help='Directory for exporting the dataframes. If not set the dataframe won\'t be exported.')
-@click.option('--video_dir', default=None, help='Directory for exporting the video with tracked objects and bar path. If not set the videos with tracking won\'t be exported.')
-@click.option('--threads', default=4, help='Number of threads to use for detection model inference.')
+@click.option('--model', default='models/efficientdet_lite0_whole.tflite', help='Path to a TF Lite model used for object detection.', type=str, show_default=True)
+@click.option('--detection_treshold', default=0.5, help='Object detection threshold.', type=float, show_default=True)
+@click.option('--display_image_height', default=720, help='Displayed image height in pixels. Image width will be calculated to keep the same ratio as the original capture source.', type=int, show_default=True)
+@click.option('--df_dir', default=None, help='Directory for exporting the dataframes. If not set the dataframe won\'t be exported.', show_default=True)
+@click.option('--video_dir', default=None, help='Directory for exporting the video with tracked objects and bar path. If not set the videos with tracking won\'t be exported.', show_default=True)
+@click.option('--threads', default=4, help='Number of threads to use for detection model inference.', show_default=True)
 def main(src, model, detection_treshold, display_image_height, df_dir, video_dir, threads):
     """
     Visualize the object detection model for barbell tracking on a video

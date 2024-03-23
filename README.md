@@ -47,6 +47,13 @@ python train.py
 
 To further customize the architecture or training parameters please see the [official documentation](https://www.tensorflow.org/lite/models/modify/model_maker/object_detection). The dataset provided in the `data` folder is a mixture of my personal images and a dataset found on Roboflow [1].
 
+You can find the logs from training each model in the `models` directory. Below are the Precision-Recall and ROC curves for the trained models evaluated on the testing dataset with an IoU thresholds of 0.5 to classify detections as correct when calculated against the annotated bounding boxes.
+
+<p align="center">
+    <img src="docs/precision_recall.png" width="49%" />
+    <img src="docs/roc.png" width="49%" />
+</p>
+
 ---
 
 [1] Barbell Detector Dataset. Roboflow, Sep 2022. Visited on 2024-03-09. https://universe.roboflow.com/personal-yvwij/barbell-detector-svmfh.

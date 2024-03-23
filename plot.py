@@ -48,10 +48,10 @@ def analyze_df(df, plate_diameter):
 
 
 @click.command()
-@click.argument('src', type=str, nargs=-1)
-@click.option('--show_fig', is_flag=True, help='Show the figure.')
-@click.option('--plate_diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float)
-@click.option('--fig_dir', default=None, help='Directory for saving the figures. If not set the figures won\'t be saved.')
+@click.argument('src', type=str, nargs=-1, show_default=True)
+@click.option('--show_fig', is_flag=True, help='Show the figure.', show_default=True)
+@click.option('--plate_diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float, show_default=True)
+@click.option('--fig_dir', default=None, help='Directory for saving the figures. If not set the figures won\'t be saved.', show_default=True)
 def main(src, show_fig, plate_diameter, fig_dir):
     """
     Visualize the bar position and speeds over time based
