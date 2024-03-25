@@ -265,7 +265,7 @@ def plot_precision_recall(df, gt_total, fig_dir, iou_threshold):
             linestyle=':', linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, 'precision_recall.pdf'))
+    plt.savefig(os.path.join(fig_dir, f'precision_recall_iou_{iou_threshold}.pdf'))
     plt.close()
 
 
@@ -329,7 +329,7 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
             linestyle=':', linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, 'roc.pdf'))
+    plt.savefig(os.path.join(fig_dir, f'roc_iou_{iou_threshold}.pdf'))
     plt.close()
 
     if score_thresholds is None or len(score_thresholds) == 0:
@@ -339,7 +339,7 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
     # ROC curve and create separate plots
     for m in pd.unique(df["Model"]):
         for handle, label in zip(handles, labels):
-            if label.startswith(m):
+            if label.startswith(m) and (('whole' in label) == ('whole' in m)):
                 model_color = handle.get_color()
 
         dfm = df_roc.query("Model == @m")
@@ -393,7 +393,7 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
                         )
 
         plt.tight_layout()
-        plt.savefig(os.path.join(fig_dir, f'roc_{m}_thresholds.pdf'))
+        plt.savefig(os.path.join(fig_dir, f'roc_{m}_iou_{iou_threshold}.pdf'))
         plt.close()
 
 
