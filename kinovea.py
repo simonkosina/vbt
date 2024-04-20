@@ -15,6 +15,7 @@ import numpy as np
 from math import ceil, floor
 from scipy.interpolate import interp1d
 from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
 
 filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              _id        # Skip the '_id' part
@@ -36,7 +37,7 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
     Plot comparisons between kinovea exports and the created dfs.
     """
 
-    sns.set_theme(style='ticks')
+    sns.set_theme(context='paper', style='ticks')
     sns.set_palette('rocket', 2)
 
     kinovea_files = glob.glob(os.path.join(kinovea_dir, '*.txt'))
@@ -45,8 +46,16 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
     if fig_dir is not None:
         os.makedirs(fig_dir, exist_ok=True)
 
-    for kinovea_file in sorted(kinovea_files)[-1:]:
-    # for kinovea_file in kinovea_files:
+    videos = []
+    rx = []
+    px = []
+    ry = []
+    py = []
+    mse_x = []
+    mse_y = []
+
+    # for kinovea_file in sorted(kinovea_files)[4:5]:
+    for kinovea_file in kinovea_files:
         # Find the matching df file
         matching_df_file = next((x for x in df_files if os.path.basename(
             x).startswith(os.path.basename(kinovea_file).split('.')[0])), None)
@@ -57,6 +66,8 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
 
         result = filename_regexp.match(os.path.basename(matching_df_file))
         video, tracking_id, model = result.groups()
+
+        videos.append(video)
 
         # Load the kinovea export file into a df
         kinovea_df = pd.read_csv(
@@ -88,13 +99,13 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
             columns=['norm_plate_width', 'norm_plate_height'])
 
         # Align the coordinate systems
-        y_shift = kinovea_df['y'].min() - matching_df['y'].min()
+        y_shift = kinovea_df['y'].mean() - matching_df['y'].mean()
         matching_df['y'] += y_shift
 
-        x_shift = kinovea_df['x'].min() - matching_df['x'].min()
+        x_shift = kinovea_df['x'].mean() - matching_df['x'].mean()
         matching_df['x'] += x_shift
 
-        fig, axs = plt.subplots(2, sharex=True, figsize=(8, 5))
+        fig, axs = plt.subplots(2, sharex=True, figsize=(8, 4))
 
         sns.lineplot(ax=axs[0], x='time', y='x',
                      data=kinovea_df, label='Kinovea')
@@ -135,9 +146,24 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
         result_x = pearsonr(x_kinovea, x_meassured)
         result_y = pearsonr(y_kinovea, y_meassured)
 
-        axs[0].legend(title=f'$r = {result_x.statistic:.4f}$')
-        axs[1].legend(title=f'$r = {result_y.statistic:.4f}$')
-        plt.suptitle(f'{video}')
+        rx.append(result_x.statistic)
+        px.append(result_x.pvalue)
+        ry.append(result_y.statistic)
+        py.append(result_y.pvalue)
+        mse_x.append(mean_squared_error(x_kinovea, x_meassured))
+        mse_y.append(mean_squared_error(y_kinovea, y_meassured))
+
+        # axs[0].legend(title=f'$r = {result_x.statistic:.4f}$')
+        # axs[1].legend(title=f'$r = {result_y.statistic:.4f}$')
+
+        # Display fig level legend and turn off individual legends
+        handles, labels = axs[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper right', ncols=2, framealpha=1.0)
+
+        axs[0].legend().set_visible(False)
+        axs[1].legend().set_visible(False)
+
+        # plt.suptitle(f'{video}')
         plt.tight_layout()
 
         if show_fig:
@@ -145,8 +171,44 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
 
         if fig_dir is not None:
             fig.savefig(os.path.join(
-                fig_dir, f'{video}_id{tracking_id}_{model}.png'))
+                fig_dir, f'{video}_id{tracking_id}_{model}.pdf'))
 
+        plt.close(fig)
+
+
+    df = pd.DataFrame({
+        'video': videos,
+        'mse_x': mse_x,
+        'mse_y': mse_y,
+        'result_x': rx,
+        'p_x': px,
+        'result_y': ry,
+        'p_y': py
+    })
+    df = df.sort_values(by='video')
+
+    replacament = '\_'
+    df['video'] = df[['video']].map(lambda x: f'\\texttt{{{x.replace("_", replacament)}}}')
+
+    df[['mse_x', 'mse_y', 'result_x', 'result_y']] = df[[
+        'mse_x', 'mse_y', 'result_x', 'result_y']].applymap('${:.4f}$'.format)
+
+    df[['p_x', 'p_y']] = df[['p_x', 'p_y']].applymap('${:e}$'.format)
+
+    df = df.drop(columns=['p_x', 'p_y'])
+
+    df = df.rename(columns={
+        'video': 'Video',
+        'mse_x': '$\\text{MSE}_x$',
+        'mse_y': '$\\text{MSE}_y$',
+        'result_x': '$r_x$',
+        'result_y': '$r_y$',
+        'p_x': '$p_x$',
+        'p_y': '$p_y$'
+    })
+
+    latex_table = df.to_latex(index=False)
+    print(latex_table)
 
 if __name__ == "__main__":
     main()
