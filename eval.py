@@ -18,7 +18,7 @@ import ast
 from odt import run_odt
 from tflite_runtime.interpreter import Interpreter
 from matplotlib.ticker import MultipleLocator
-from sklearn.metrics import average_precision_score, roc_curve, roc_auc_score
+from sklearn.metrics import precision_recall_curve, average_precision_score, roc_curve, roc_auc_score
 
 LABEL = 'barbell'
 
@@ -215,34 +215,34 @@ def create_detections_df(models, img_dir, annotations, export_path, num_threads)
     return df_det
 
 
-def plot_precision_recall(df, gt_total, fig_dir, iou_threshold):
+def plot_precision_recall(df, fig_dir, iou_threshold):
     """
     Based on the provided dataframe and total number of ground
     truth bounding boxes in the annotations, plot the precision-recall
     curve and save it to fig_dir.
     """
-
-    df['TP'] = df['Label'].astype(int)
-    df['FP'] = np.logical_not(df['Label']).astype(int)
-
-    # Sort by score and calculate precision and recall values using
-    # accumulated counts of true and false positives
-    df.sort_values(by='Score', inplace=True, ascending=False)
-    df['acc_tp'] = df.groupby('Model')['TP'].cumsum()
-    df['acc_fp'] = df.groupby('Model')['FP'].cumsum()
-    df['Precision'] = df['acc_tp'] / (df['acc_tp'] + df['acc_fp'])
-    df['Recall'] = df['acc_tp'] / gt_total
-
-    # Get average precision values for each model
     aps = {}
+    prcs = []
+
     for m in pd.unique(df["Model"]):
         dfm = df.query("Model == @m")
         scores = dfm["Score"]
         labels = dfm["Label"]
 
+        precision, recall, _ = precision_recall_curve(labels, scores)
+        df_model_prc = pd.DataFrame({
+            'Precision': precision,
+            'Recall': recall,
+            'Model': m
+        })
+
+        prcs.append(df_model_prc)
         aps[m] = average_precision_score(labels, scores)
 
-    ax = sns.lineplot(data=df, x='Recall',
+    # Concatenate individual model dataframes
+    df_prc = pd.concat(prcs, ignore_index=True)
+
+    ax = sns.lineplot(data=df_prc, x='Recall',
                       y='Precision', hue='Model',
                       errorbar=None)
     ax.set_xlim(0, 1.01)
@@ -252,9 +252,9 @@ def plot_precision_recall(df, gt_total, fig_dir, iou_threshold):
 
     handles, labels = ax.get_legend_handles_labels()
     for i, model in enumerate(labels):
-        labels[i] += f', AP={aps[model]:.4f}'
+        labels[i] += f', AP$_{{{iou_threshold*100:0.0f}}}={aps[model]:.4f}$'
 
-    ax.set_title(f'Precision-Recall curve, IoU threshold = {iou_threshold}')
+    # ax.set_title(f'Precision-Recall curve, IoU threshold = {iou_threshold}')
     ax.legend(handles, labels, loc='lower left')
 
     ax.yaxis.set_minor_locator(MultipleLocator(0.1))
@@ -265,7 +265,8 @@ def plot_precision_recall(df, gt_total, fig_dir, iou_threshold):
             linestyle=':', linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(fig_dir, f'precision_recall_iou_{iou_threshold}.pdf'))
+    plt.savefig(os.path.join(
+        fig_dir, f'precision_recall_iou_{iou_threshold}.pdf'))
     plt.close()
 
 
@@ -317,7 +318,7 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
     for i, model in enumerate(labels):
         labels[i] += f', AUC={roc_aucs[model]:.4f}'
 
-    ax.set_title(f'ROC curve, IoU threshold = {iou_threshold}')
+    # ax.set_title(f'ROC curve, IoU = {iou_threshold}')
     ax.legend(handles, labels, loc='lower right')
 
     ax.xaxis.set_minor_locator(MultipleLocator(0.1))
@@ -357,8 +358,8 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
         for i, model in enumerate(_labels):
             _labels[i] += f', AUC={roc_aucs[model]:.4f}'
 
-        ax.set_title(
-            f'ROC curve with score thresholds, IoU threshold = {iou_threshold}')
+        # ax.set_title(
+        #   f'ROC curve with score thresholds, IoU threshold = {iou_threshold}')
         ax.legend(_handles, _labels, loc='lower right')
 
         ax.xaxis.set_minor_locator(MultipleLocator(0.05))
@@ -411,8 +412,7 @@ def main(models, img_dir, annotations_dir, fig_dir, iou_threshold, threads, dete
     """
     Plot Precision-Recall and ROC curves for the specified models.
     """
-    sns.set_theme(style='ticks')
-    sns.set_palette('Set2')
+    sns.set_theme(context='paper', style='ticks')
 
     # Load ground truth bounding boxes from annotations
     annotation_files = glob.glob(f'{annotations_dir}/*.xml')
@@ -441,16 +441,13 @@ def main(models, img_dir, annotations_dir, fig_dir, iou_threshold, threads, dete
         print(f"Loading dataframe '{detections_df}'.")
         df = pd.read_pickle(detections_df)
 
-    # Total number of ground truth bounding boxes
-    gt_total = sum([len(gt_bboxes) for gt_bboxes in annotations.values()])
-
     # Classify detections as correct or not based on the IoU threshold
     df['Label'] = df['IoU'] > iou_threshold
 
     if fig_dir is not None:
         os.makedirs(fig_dir, exist_ok=True)
 
-        plot_precision_recall(df.copy(), gt_total, fig_dir, iou_threshold)
+        plot_precision_recall(df.copy(), fig_dir, iou_threshold)
         plot_roc(df.copy(), fig_dir, iou_threshold, score_thresholds)
 
 
