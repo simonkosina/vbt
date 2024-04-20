@@ -242,9 +242,10 @@ def plot_precision_recall(df, fig_dir, iou_threshold):
     # Concatenate individual model dataframes
     df_prc = pd.concat(prcs, ignore_index=True)
 
-    ax = sns.lineplot(data=df_prc, x='Recall',
-                      y='Precision', hue='Model',
-                      errorbar=None)
+    _, ax = plt.subplots(figsize=(7, 4))
+    sns.lineplot(ax=ax, data=df_prc, x='Recall',
+                 y='Precision', hue='Model',
+                 errorbar=None)
     ax.set_xlim(0, 1.01)
     ax.set_ylim(0, 1.01)
     ax.spines['top'].set_visible(False)
@@ -305,9 +306,10 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
     df_roc = pd.concat(rocs, ignore_index=True)
 
     # Plot individual ROC curves with AUC scores
-    ax = sns.lineplot(data=df_roc, x='FP Rate',
-                      y='TP Rate', hue='Model',
-                      errorbar=None)
+    _, ax = plt.subplots(figsize=(7, 4))
+    sns.lineplot(ax=ax, data=df_roc, x='FP Rate',
+                 y='TP Rate', hue='Model',
+                 errorbar=None)
 
     ax.set_xlim(0, 1.01)
     ax.set_ylim(0, 1.01)
@@ -345,9 +347,10 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
 
         dfm = df_roc.query("Model == @m")
 
-        ax = sns.lineplot(data=dfm, x='FP Rate',
-                          y='TP Rate', hue='Model',
-                          errorbar=None, palette=[model_color])
+        _, ax = plt.subplots(figsize=(7, 4))
+        sns.lineplot(ax=ax, data=dfm, x='FP Rate',
+                     y='TP Rate', hue='Model',
+                     errorbar=None, palette=[model_color])
 
         ax.set_xlim(0, 1.01)
         ax.set_ylim(0, 1.01)

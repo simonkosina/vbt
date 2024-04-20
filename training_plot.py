@@ -38,7 +38,7 @@ if __name__ == "__main__":
     df['epoch'] = range(1, len(df) + 1)
     df = pd.melt(df, id_vars=['epoch'], var_name='Model', value_name='loss')
 
-    fix, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(7, 4))
     sns.lineplot(ax=ax, data=df, x='epoch', y='loss', hue='Model')
 
     ax.set(xlabel='Epoch', ylabel='Strata na validačnej sade')
