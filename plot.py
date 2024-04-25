@@ -14,7 +14,7 @@ from math import ceil, floor
 from VelocityTracker import VelocityTracker
 from Phase import Phase
 
-sns.set_theme(style='ticks')
+sns.set_theme(style='ticks', context='paper')
 sns.set_palette('rocket')
 filename_regexp = re.compile(r"""(\S*)  # Match the original video filename
                              _id        # Skip the '_id' part
@@ -48,7 +48,7 @@ def analyze_df(df, plate_diameter):
 
 
 @click.command()
-@click.argument('src', type=str, nargs=-1, show_default=True)
+@click.argument('src', type=str, nargs=-1)
 @click.option('--show_fig', is_flag=True, help='Show the figure.', show_default=True)
 @click.option('--plate_diameter', default=0.45, help='Diameter of the weight plate used in meters.', type=float, show_default=True)
 @click.option('--fig_dir', default=None, help='Directory for saving the figures. If not set the figures won\'t be saved.', show_default=True)
@@ -77,7 +77,12 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     filename = os.path.basename(src)
     result = filename_regexp.match(filename)
-    video, tracking_id, model = result.groups()
+
+    try:
+        video, tracking_id, model = result.groups()
+    except:
+        print(f"Couldn't create a plot for file '{src}'.")
+        return
 
     df = pd.read_pickle(src)
     df = df.query(f'id == {tracking_id}').drop(columns=['id'])
@@ -97,11 +102,11 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
     df_vel = pd.melt(df_vel, id_vars=['time'],
                      var_name='Velocity', value_name='value')
 
-    fig, (pos_ax, vel_ax) = plt.subplots(2, sharex=True, figsize=(12, 8))
+    fig, (pos_ax, vel_ax) = plt.subplots(2, sharex=True, figsize=(8, 5))
 
     # title = f'{video}, id: {tracking_id}, model: {model}'
-    title = 'Bar center position and speed over time in x and y image coordinates.'
-    fig.suptitle(title)
+    # title = 'Bar center position and speed over time in x and y image coordinates.'
+    # fig.suptitle(title)
 
     sns.lineplot(
         df_pos,
@@ -125,9 +130,11 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     pos_ylim = pos_ax.get_ylim()
     pos_ax.set(
-        ylabel='[Normalized image coordinates]',
+        # ylabel='[Normalized image coordinates]',
+        ylabel='[Normalizované súradnice]',
         xlabel=None,
-        title='Bar position over time, ROM for each concentric phase displayed in [m]',
+        # title='Bar position over time, ROM for each concentric phase displayed in [m]',
+        title='Poloha činky v čase, dĺžka trajektórie pre každú koncentrickú fázu zobrazená v [m]',
         ylim=[max(pos_ylim[0] - 0.2, 0), min(pos_ylim[1] + 0.2, 1)],
         xlim=[start, end]
     )
@@ -135,9 +142,11 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     vel_ylim = vel_ax.get_ylim()
     vel_ax.set(
-        ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
+        # ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
+        ylabel=r'[(Normalizované súradnice)$\cdot$s$^{-1}]$',
         xlabel=None,
-        title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
+        # title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
+        title='Rýchlosť činky v čase, metrika ACV zobrazená pre každú koncetrickú fázu v [m/s]',
         xlim=[start, end],
         # ylim=[vel_ylim[0], vel_ylim[1] + 0.2],
     )
@@ -176,14 +185,17 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
     # Create custom legend
     legend_patches = [
         mpatches.Patch(
-            color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Concentric'),
+            color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Koncentrická'),
+            # color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Concentric'),
         mpatches.Patch(
-            color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Eccentric')
+            color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Excentrická')
+            # color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Eccentric')
     ]
 
-    # Add legend to the plot
-    fig.legend(handles=legend_patches)
-    plt.xlabel('Time [s]')
+    # Add legend to the plot and legend title
+    fig.legend(handles=legend_patches, loc='lower right', ncol=1, framealpha=1.0, title='Fáza')
+    # fig.legend(handles=legend_patches, loc='upper center', ncol=2, framealpha=1.0)
+    plt.xlabel('Čas [s]')
 
     x_max = ceil(vel_ax.get_xlim()[1])
     x_min = floor(vel_ax.get_xlim()[0])

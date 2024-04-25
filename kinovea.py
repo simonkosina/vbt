@@ -65,7 +65,11 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
             continue
 
         result = filename_regexp.match(os.path.basename(matching_df_file))
-        video, tracking_id, model = result.groups()
+
+        try:
+            video, tracking_id, model = result.groups()
+        except:
+            continue
 
         videos.append(video)
 
