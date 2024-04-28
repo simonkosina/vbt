@@ -130,6 +130,13 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
         plt.xlim(0, max(kinovea_df['time'].max(), matching_df['time'].max()))
         plt.xlabel('Čas [s]')
 
+        x_lim_diff = abs(axs[0].get_ylim()[1] - axs[0].get_ylim()[0])
+        y_lim_diff = abs(axs[1].get_ylim()[1] - axs[1].get_ylim()[0])
+
+        if x_lim_diff < y_lim_diff:
+            x_min, x_max = axs[0].get_ylim()
+            axs[0].set_ylim = axs[0].set_ylim(x_min - y_lim_diff / 2, x_max + y_lim_diff / 2)
+
         # Format y axis
         axs[0].set_ylabel('X [m]')
         axs[1].set_ylabel('Y [m]')

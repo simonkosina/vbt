@@ -130,11 +130,11 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     pos_ylim = pos_ax.get_ylim()
     pos_ax.set(
-        # ylabel='[Normalized image coordinates]',
-        ylabel='[Normalizované súradnice]',
+        ylabel='[Normalized image coordinates]',
+        # ylabel='[Normalizované súradnice]',
         xlabel=None,
-        # title='Bar position over time, ROM for each concentric phase displayed in [m]',
-        title='Poloha činky v čase, dĺžka trajektórie pre každú koncentrickú fázu zobrazená v [m]',
+        title='Bar position over time, ROM for each concentric phase displayed in [m]',
+        # title='Poloha činky v čase, dĺžka trajektórie pre každú koncentrickú fázu zobrazená v [m]',
         ylim=[max(pos_ylim[0] - 0.2, 0), min(pos_ylim[1] + 0.2, 1)],
         xlim=[start, end]
     )
@@ -142,11 +142,11 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     vel_ylim = vel_ax.get_ylim()
     vel_ax.set(
-        # ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
-        ylabel=r'[(Normalizované súradnice)$\cdot$s$^{-1}]$',
+        ylabel=r'[(Normalized image coordinates)$\cdot$s$^{-1}$]',
+        # ylabel=r'[(Normalizované súradnice)$\cdot$s$^{-1}]$',
         xlabel=None,
-        # title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
-        title='Rýchlosť činky v čase, metrika ACV zobrazená pre každú koncetrickú fázu v [m/s]',
+        title='Bar speed over time, ACV for each concentric phase displayed in [m/s]',
+        # title='Rýchlosť činky v čase, metrika ACV zobrazená pre každú koncetrickú fázu v [m/s]',
         xlim=[start, end],
         # ylim=[vel_ylim[0], vel_ylim[1] + 0.2],
     )
@@ -185,17 +185,18 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
     # Create custom legend
     legend_patches = [
         mpatches.Patch(
-            color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Koncentrická'),
-            # color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Concentric'),
+            # color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Koncentrická'),
+            color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Concentric'),
         mpatches.Patch(
             color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Excentrická')
             # color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Eccentric')
     ]
 
     # Add legend to the plot and legend title
-    fig.legend(handles=legend_patches, loc='lower right', ncol=1, framealpha=1.0, title='Fáza')
-    # fig.legend(handles=legend_patches, loc='upper center', ncol=2, framealpha=1.0)
-    plt.xlabel('Čas [s]')
+    # fig.legend(handles=legend_patches, loc='lower right', ncol=1, framealpha=1.0, title='Fáza')
+    fig.legend(handles=legend_patches, loc='lower right', ncol=2, framealpha=1.0, title='Phase')
+    # plt.xlabel('Čas [s]')
+    plt.xlabel('Time [s]')
 
     x_max = ceil(vel_ax.get_xlim()[1])
     x_min = floor(vel_ax.get_xlim()[0])
