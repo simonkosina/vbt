@@ -3,6 +3,7 @@ kinovea_flip_vals.py
 plate_tracking/data
 tmp/*
 *.mp4
+*.avi
 .venv/
 .vscode
 .vscode/*
