@@ -215,7 +215,7 @@ def create_detections_df(models, img_dir, annotations, export_path, num_threads)
     return df_det
 
 
-def plot_precision_recall(df, fig_dir, iou_threshold):
+def plot_precision_recall(df, fig_dir, iou_threshold, score_thresholds=None):
     """
     Based on the provided dataframe and total number of ground
     truth bounding boxes in the annotations, plot the precision-recall
@@ -229,10 +229,15 @@ def plot_precision_recall(df, fig_dir, iou_threshold):
         scores = dfm["Score"]
         labels = dfm["Label"]
 
-        precision, recall, _ = precision_recall_curve(labels, scores)
+        precision, recall, thresholds = precision_recall_curve(labels, scores)
+
+        # repeat the last element in threholds to match the length of precision and recall
+        thresholds = np.concatenate([thresholds, [thresholds[-1]]])
+
         df_model_prc = pd.DataFrame({
             'Precision': precision,
             'Recall': recall,
+            'Threshold': thresholds,
             'Model': m
         })
 
@@ -269,6 +274,68 @@ def plot_precision_recall(df, fig_dir, iou_threshold):
     plt.savefig(os.path.join(
         fig_dir, f'precision_recall_iou_{iou_threshold}.pdf'))
     plt.close()
+
+    if score_thresholds is None or len(score_thresholds) == 0:
+        return
+
+    # For each model find the given thresholds on the
+    # Precision-Recall curve and create separate plots
+    for m in pd.unique(df["Model"]):
+        for handle, label in zip(handles, labels):
+            if label.startswith(m) and (('whole' in label) == ('whole' in m)):
+                model_color = handle.get_color()
+
+        dfm = df_prc.query("Model == @m")
+
+        _, ax = plt.subplots(figsize=(7, 3))
+        sns.lineplot(ax=ax, data=dfm, x='Recall',
+                     y='Precision', hue='Model',
+                     errorbar=None, palette=[model_color])
+
+        ax.set_xlim(0, 1.01)
+        ax.set_ylim(0, 1.01)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        _handles, _labels = ax.get_legend_handles_labels()
+        for i, model in enumerate(_labels):
+            _labels[i] += f', AP={aps[model]:.4f}'
+
+        ax.legend(_handles, _labels, loc='lower left')
+        ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+
+        ax.grid(which='major', color='gray',
+                linestyle='-', linewidth=0.5, alpha=0.7)
+        ax.grid(which='minor', color='gray',
+                linestyle=':', linewidth=0.5, alpha=0.5)
+
+        for i, v in enumerate(score_thresholds[::-1]):
+            diffs = abs(dfm['Threshold'] - v)
+            closest_row = dfm.loc[diffs.idxmin()]
+
+            precision = closest_row["Precision"]
+            recall = closest_row["Recall"]
+            threshold = closest_row["Threshold"]
+
+            text = f'{threshold:.4f}'
+            ax.annotate(text,
+                        xy=(recall, precision),
+                        xycoords='data',
+                        xytext=(-50, -(min(i, 3) + 1) * 15),
+                        textcoords='offset points',
+                        arrowprops=dict(
+                            arrowstyle="->",
+                            color='k',
+                            connectionstyle="arc3,rad=+0.1",
+                            relpos=(1, 1)
+                        ),
+                        fontsize=10
+                        )
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(fig_dir, f'precision_recall_{m}_iou_{iou_threshold}.pdf'))
+        plt.close()
 
 
 def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
@@ -347,7 +414,7 @@ def plot_roc(df, fig_dir, iou_threshold, score_thresholds=None):
 
         dfm = df_roc.query("Model == @m")
 
-        _, ax = plt.subplots(figsize=(7, 4))
+        _, ax = plt.subplots(figsize=(7, 3))
         sns.lineplot(ax=ax, data=dfm, x='FP Rate',
                      y='TP Rate', hue='Model',
                      errorbar=None, palette=[model_color])
@@ -450,7 +517,7 @@ def main(models, img_dir, annotations_dir, fig_dir, iou_threshold, threads, dete
     if fig_dir is not None:
         os.makedirs(fig_dir, exist_ok=True)
 
-        plot_precision_recall(df.copy(), fig_dir, iou_threshold)
+        plot_precision_recall(df.copy(), fig_dir, iou_threshold, score_thresholds)
         plot_roc(df.copy(), fig_dir, iou_threshold, score_thresholds)
 
 
