@@ -54,7 +54,7 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
     mse_x = []
     mse_y = []
 
-    # for kinovea_file in sorted(kinovea_files)[4:5]:
+    # for kinovea_file in sorted(kinovea_files)[5:6]:
     for kinovea_file in kinovea_files:
         # Find the matching df file
         matching_df_file = next((x for x in df_files if os.path.basename(
@@ -95,6 +95,16 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
             columns=['dx', 'dy'])
         matching_df = matching_df.query(
             f'id == {tracking_id}').drop(columns=['id'])
+        matching_df = matching_df.sort_values(by='time')
+
+        plt.plot(matching_df['time'], matching_df['norm_plate_width'])
+
+        # Calculate width as running average
+        matching_df['norm_plate_width'] = matching_df['norm_plate_width'].rolling(
+            window=30, center=False, min_periods=1).mean()
+        matching_df['norm_plate_height'] = matching_df['norm_plate_height'].rolling(
+            window=30, center=False, min_periods=1).mean()
+
         matching_df['x'] = matching_df['x'] * \
             plate_diameter / matching_df['norm_plate_width']
         matching_df['y'] = - matching_df['y'] * plate_diameter / \

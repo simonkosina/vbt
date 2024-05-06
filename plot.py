@@ -188,8 +188,8 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
             # color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Koncentrická'),
             color=phase_cmap[Phase.CONCENTRIC], alpha=0.2, label='Concentric'),
         mpatches.Patch(
-            color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Excentrická')
-            # color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Eccentric')
+            # color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Excentrická')
+            color=phase_cmap[Phase.ECCENTRIC], alpha=0.2, label='Eccentric')
     ]
 
     # Add legend to the plot and legend title

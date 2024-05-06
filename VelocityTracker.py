@@ -5,6 +5,7 @@ Definition of the VelocityTracker class.
 import numpy as np
 
 from Phase import Phase
+from RunningAverage import RunningAverage
 
 
 VELOCITY_COUNT_THRESHOLDS = 3
@@ -38,6 +39,9 @@ class VelocityTracker(object):
         self.widths = []
         self.heights = []
         self.times = []
+
+        self.width_avg = RunningAverage(window_size=30)
+        self.width_avg = RunningAverage(window_size=30)
 
         self.negative_vel_cnt = 0
         self.positive_vel_cnt = 0
@@ -87,15 +91,18 @@ class VelocityTracker(object):
     def process_measurements(self, time, x, y, dx, dy, norm_plate_height, norm_plate_width):
         """
         Process a the measured position, velocity and plate dimension
-        for a given time point. 
+        for a given time point.
         """
+
+        width = self.width_avg.update(norm_plate_width)
+        height = self.width_avg.update(norm_plate_height)
 
         if self.y_prev is not None:
             dy = y - self.y_prev
 
         if self.current_phase != Phase.HOLD:
             self._append_to_bar_path(
-                x, y, norm_plate_width, norm_plate_height, time)
+                x, y, width, height, time)
 
         if self.current_phase == Phase.CONCENTRIC:
             if dy > 0:
@@ -127,7 +134,7 @@ class VelocityTracker(object):
             else:
                 # Start appending before the rep officially started
                 self._append_to_bar_path(
-                    x, y, norm_plate_width, norm_plate_height, time)
+                    x, y, width, height, time)
 
             if self.negative_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
                 self._start_phase(Phase.CONCENTRIC)
@@ -141,7 +148,7 @@ class VelocityTracker(object):
             else:
                 # Start appending before the rep officially started
                 self._append_to_bar_path(
-                    x, y, norm_plate_width, norm_plate_height, time)
+                    x, y, width, height, time)
 
             if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
                 self._start_phase(Phase.ECCENTRIC)
