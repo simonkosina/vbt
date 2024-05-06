@@ -109,6 +109,13 @@ def main(qualysis_dir, df_dir, show_fig, fig_dir, plate_diameter):
             columns=['dx', 'dy'])
         matching_df = matching_df.query(
             f'id == {tracking_id}').drop(columns=['id'])
+
+        # Calculate as running average
+        matching_df['norm_plate_width'] = matching_df['norm_plate_width'].rolling(
+            window=30, center=False, min_periods=1).mean()
+        matching_df['norm_plate_height'] = matching_df['norm_plate_height'].rolling(
+            window=30, center=False, min_periods=1).mean()
+
         matching_df['x'] = matching_df['x'] * \
             plate_diameter / matching_df['norm_plate_width']
         matching_df['y'] = - matching_df['y'] * plate_diameter / \
