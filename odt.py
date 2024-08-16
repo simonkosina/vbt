@@ -71,7 +71,7 @@ def detect_objects(interpreter, image, threshold):
         if scores[i] >= threshold:
             results.append({
                 'bounding_box': boxes[i],
-                'score': scores[i]
+                'score': scores[i],
             })
 
     return results
@@ -115,4 +115,4 @@ def results_to_sorttracker_inputs(orig_results):
 
         results.append(np.array([xmin, ymin, xmax, ymax, score, 0]))
 
-    return np.empty((0, 5)) if len(results) == 0 else np.array(results)
+    return np.empty((0, 6)) if len(results) == 0 else np.array(results)

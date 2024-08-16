@@ -13,7 +13,8 @@ import pandas as pd
 import tensorflow as tf
 import os
 
-from sort.tracker import SortTracker
+# from sort.tracker import SortTracker
+from ocsort import OCSort
 from odt import run_odt, detect_objects, calc_bounding_box_center, calc_plate_height, calc_plate_width, results_to_sorttracker_inputs
 from tflite_runtime.interpreter import Interpreter
 
@@ -152,7 +153,8 @@ def track(src, interpreter, detection_treshold, display_image_height, video_path
         video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(
             *'mp4v'), fps, (frame_width, frame_height))
 
-    tracker = SortTracker(max_age=MAX_AGE)
+    # tracker = SortTracker(max_age=MAX_AGE)
+    tracker = OCSort(max_age=MAX_AGE, asso_func="diou", iou_threshold=0.1)
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -171,6 +173,9 @@ def track(src, interpreter, detection_treshold, display_image_height, video_path
             interpreter=interpreter,
             threshold=detection_treshold
         )
+
+        if results == []:
+            continue
 
         img.flags.writeable = False
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
