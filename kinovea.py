@@ -100,10 +100,13 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
         plt.plot(matching_df['time'], matching_df['norm_plate_width'])
 
         # Calculate width as running average
-        matching_df['norm_plate_width'] = matching_df['norm_plate_width'].rolling(
-            window=30, center=False, min_periods=1).mean()
-        matching_df['norm_plate_height'] = matching_df['norm_plate_height'].rolling(
-            window=30, center=False, min_periods=1).mean()
+        for col in ['norm_plate_height', 'norm_plate_width']:
+            matching_df[col] = matching_df[col].rolling(
+                window=30, center=False, min_periods=1).mean()
+
+        for col in ['x', 'y']:
+            matching_df[col] = matching_df[col].rolling(
+                window=10, center=False, min_periods=1).mean()
 
         matching_df['x'] = matching_df['x'] * \
             plate_diameter / matching_df['norm_plate_width']
@@ -124,12 +127,12 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
         sns.lineplot(ax=axs[0], x='time', y='x',
                      data=kinovea_df, label='Kinovea')
         sns.lineplot(ax=axs[0], x='time', y='x',
-                     data=matching_df, label='Vlastné')
+                     data=matching_df, label='Velocity Tracker')
 
         sns.lineplot(ax=axs[1], x='time', y='y',
                      data=kinovea_df, label='Kinovea')
         sns.lineplot(ax=axs[1], x='time', y='y',
-                     data=matching_df, label='Vlastné')
+                     data=matching_df, label='Velocity Tracker')
 
         # Format x axis
         x_max = ceil(axs[1].get_xlim()[1])
