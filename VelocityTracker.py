@@ -8,7 +8,8 @@ from Phase import Phase
 from RunningAverage import RunningAverage
 
 
-VELOCITY_COUNT_THRESHOLDS = 3
+VELOCITY_COUNT_START_THRESHOLD = 3
+VELOCITY_COUNT_END_THRESHOLD = 1
 
 
 class VelocityTracker(object):
@@ -109,7 +110,7 @@ class VelocityTracker(object):
                 self.positive_vel_cnt += 1
                 self.negative_vel_cnt = 0
 
-                if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                if self.positive_vel_cnt >= VELOCITY_COUNT_END_THRESHOLD:
                     self._end_phase()
             else:
                 self.positive_vel_cnt = 0
@@ -119,7 +120,7 @@ class VelocityTracker(object):
                 self.negative_vel_cnt += 1
                 self.positive_vel_cnt = 0
 
-                if self.negative_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+                if self.negative_vel_cnt >= VELOCITY_COUNT_END_THRESHOLD:
                     self._end_phase()
             else:
                 self.negative_vel_cnt = 0
@@ -136,7 +137,7 @@ class VelocityTracker(object):
                 self._append_to_bar_path(
                     x, y, width, height, time)
 
-            if self.negative_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+            if self.negative_vel_cnt >= VELOCITY_COUNT_START_THRESHOLD:
                 self._start_phase(Phase.CONCENTRIC)
 
         if dy > 0 and self.current_phase == Phase.HOLD:
@@ -150,7 +151,7 @@ class VelocityTracker(object):
                 self._append_to_bar_path(
                     x, y, width, height, time)
 
-            if self.positive_vel_cnt >= VELOCITY_COUNT_THRESHOLDS:
+            if self.positive_vel_cnt >= VELOCITY_COUNT_START_THRESHOLD:
                 self._start_phase(Phase.ECCENTRIC)
 
         self.x_prev = x
