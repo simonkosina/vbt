@@ -163,6 +163,9 @@ def track(src, interpreter, detection_treshold, display_image_height, video_path
         if not ret:
             break
 
+        if frame_count % 16:
+            continue
+
         time = frame_count / fps
 
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

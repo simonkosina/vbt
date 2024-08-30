@@ -89,11 +89,10 @@ def plot(src, show_fig, save_fig, plate_diameter, fig_dir):
 
     for col in ['x', 'y', 'dx', 'dy']:
         df[col] = df[col].rolling(
-            window=10, center=False, min_periods=1).mean()
+            window=5, center=False, min_periods=1).mean()
 
     for col in ['norm_plate_height', 'norm_plate_width']:
-        df[col] = df[col].rolling(
-            window=30, center=False, min_periods=1).mean()
+        df[col] = df[col].expanding(min_periods=1).mean()
 
     df_pos = df.drop(
         columns=['dx', 'dy', 'norm_plate_height', 'norm_plate_width'])

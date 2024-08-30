@@ -101,12 +101,11 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
 
         # Calculate width as running average
         for col in ['norm_plate_height', 'norm_plate_width']:
-            matching_df[col] = matching_df[col].rolling(
-                window=30, center=False, min_periods=1).mean()
+            matching_df[col] = matching_df[col].expanding(min_periods=1).mean()
 
         for col in ['x', 'y']:
             matching_df[col] = matching_df[col].rolling(
-                window=10, center=False, min_periods=1).mean()
+                window=5, center=False, min_periods=1).mean()
 
         matching_df['x'] = matching_df['x'] * \
             plate_diameter / matching_df['norm_plate_width']
@@ -211,6 +210,8 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
     })
     df = df.sort_values(by='video')
 
+    print(f'Total MSEx = {df.mse_x.sum()}, MSEy = {df.mse_y.sum()}')
+
     replacament = '\_'
     df['video'] = df[['video']].map(lambda x: f'\\texttt{{{x.replace("_", replacament)}}}')
 
@@ -233,6 +234,7 @@ def main(kinovea_dir, df_dir, show_fig, fig_dir, plate_diameter):
 
     latex_table = df.to_latex(index=False)
     print(latex_table)
+
 
 if __name__ == "__main__":
     main()
